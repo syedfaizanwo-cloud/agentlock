@@ -10,6 +10,7 @@ import { SkeletonTable } from '@/components/ui/SkeletonLoader';
 import { reportApi } from '@/services/api';
 import { MOCKS_ENABLED, mockReports } from '@/mocks/data';
 import { formatDate } from '@/utils/helpers';
+import TextRoll from '@/components/ui/text-roll';
 
 export default function Reports() {
   const [reports, setReports] = useState([]);
@@ -17,6 +18,13 @@ export default function Reports() {
   const [error, setError] = useState(null);
   const [retrying, setRetrying] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [filter, setFilter] = useState('ALL');
+
+  const filteredReports = reports.filter((r) => {
+    if (filter === 'CRITICAL') return (r.severity_summary?.critical || 0) > 0;
+    if (filter === 'HIGH') return (r.severity_summary?.high || 0) > 0;
+    return true;
+  });
 
   const fetchReports = useCallback(async () => {
     try {
@@ -141,9 +149,26 @@ startxref
 
       {!loading && !error && reports.length > 0 && (
         <div className="neu-card shadow-raised-md p-0">
-          <div className="shadow-inset-sm rounded-t-[14px] px-6 py-3">
-            <span className="text-sm font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>
-              All Reports
+          <div className="shadow-inset-sm rounded-t-[14px] px-6 py-3 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-4">
+              {['ALL', 'CRITICAL', 'HIGH'].map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setFilter(tab)}
+                  className={`text-xs font-semibold tracking-wider uppercase px-2 py-1 transition-colors min-h-[32px] ${
+                    filter === tab ? 'text-coral' : 'text-cream-soft hover:text-coral'
+                  }`}
+                  aria-pressed={filter === tab}
+                >
+                  <TextRoll active={filter === tab} stagger={0.012} duration={0.18}>
+                    {tab === 'ALL' ? 'ALL REPORTS' : `${tab} FINDINGS`}
+                  </TextRoll>
+                </button>
+              ))}
+            </div>
+            <span className="text-xs font-mono text-cream-soft" style={{ fontFamily: 'var(--font-mono)' }}>
+              {filteredReports.length} reports
             </span>
           </div>
           <div className="overflow-x-auto">
@@ -159,7 +184,7 @@ startxref
                 </tr>
               </thead>
               <tbody>
-                {reports.map((report) => {
+                {filteredReports.map((report) => {
                   const totalFindings = report.findings_count || 0;
                   return (
                     <tr

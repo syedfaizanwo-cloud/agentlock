@@ -1,0 +1,336 @@
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+
+interface WaveGridBackgroundProps {
+  colorBase?: string;
+  colorHigh?: string;
+  autoAnimate?: boolean;
+  waveAmplitude?: number;
+  waveSpeed?: number;
+  gridSize?: number;
+  className?: string;
+}
+
+// Hoisted allocations outside render loop
+const _dummy = new THREE.Object3D();
+const _color = new THREE.Color();
+const _baseColor = new THREE.Color();
+const _highColor = new THREE.Color();
+const _raycaster = new THREE.Raycaster();
+const _pointerPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const _intersectionPoint = new THREE.Vector3();
+
+export default function WaveGridBackground({
+  colorBase = '#0F1F44',
+  colorHigh = '#FF6F59',
+  autoAnimate = true,
+  waveAmplitude = 0.5,
+  waveSpeed = 1.0,
+  gridSize = 36,
+  className = '',
+}: WaveGridBackgroundProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Live mutable props ref so scene is NEVER rebuilt on route changes
+  const propsRef = useRef({
+    colorBase,
+    colorHigh,
+    autoAnimate,
+    waveAmplitude,
+    waveSpeed,
+  });
+
+  useEffect(() => {
+    propsRef.current = {
+      colorBase,
+      colorHigh,
+      autoAnimate,
+      waveAmplitude,
+      waveSpeed,
+    };
+  }, [colorBase, colorHigh, autoAnimate, waveAmplitude, waveSpeed]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Check prefers-reduced-motion
+    const prefersReducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+
+    // Detect device capabilities
+    const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+    const isLowConcurrency = (navigator.hardwareConcurrency || 4) <= 4;
+    const effectiveGridSize = isCoarse || isLowConcurrency ? Math.min(gridSize, 28) : gridSize;
+    const maxPixelRatio = isCoarse || isLowConcurrency ? 1.5 : Math.min(window.devicePixelRatio || 1, 2);
+
+    let renderer: THREE.WebGLRenderer | null = null;
+    let scene: THREE.Scene | null = null;
+    let camera: THREE.PerspectiveCamera | null = null;
+    let instancedMesh: THREE.InstancedMesh | null = null;
+    let animFrameId: number | null = null;
+
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: !isCoarse,
+        alpha: true,
+        powerPreference: 'high-performance',
+      });
+      renderer.setPixelRatio(maxPixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(0, 22, 28);
+      camera.lookAt(0, -2, 0);
+
+      // Lighting tuned so idle cubes read as dark navy, wave peaks as vibrant coral
+      const ambientLight = new THREE.AmbientLight(0x0a1633, 1.8);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffeedd, 2.0);
+      directionalLight.position.set(15, 30, 20);
+      scene.add(directionalLight);
+
+      const coralPointLight = new THREE.PointLight(0xff6f59, 3.5, 40);
+      coralPointLight.position.set(0, 10, 0);
+      scene.add(coralPointLight);
+
+      // Instanced Grid of Cubes
+      const countX = effectiveGridSize;
+      const countZ = effectiveGridSize;
+      const totalCount = countX * countZ;
+      const cubeSize = 0.85;
+      const spacing = 1.15;
+      const offsetX = ((countX - 1) * spacing) / 2;
+      const offsetZ = ((countZ - 1) * spacing) / 2;
+
+      const geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+      const material = new THREE.MeshStandardMaterial({
+        roughness: 0.35,
+        metalness: 0.25,
+      });
+
+      instancedMesh = new THREE.InstancedMesh(geometry, material, totalCount);
+      instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+      // Initialize positions and colors
+      _baseColor.set(propsRef.current.colorBase);
+      for (let i = 0; i < totalCount; i++) {
+        const ix = i % countX;
+        const iz = Math.floor(i / countX);
+        const x = ix * spacing - offsetX;
+        const z = iz * spacing - offsetZ;
+
+        _dummy.position.set(x, 0, z);
+        _dummy.scale.set(1, 1, 1);
+        _dummy.updateMatrix();
+        instancedMesh.setMatrixAt(i, _dummy.matrix);
+        instancedMesh.setColorAt(i, _baseColor);
+      }
+      instancedMesh.instanceMatrix.needsUpdate = true;
+      if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+      scene.add(instancedMesh);
+    } catch (err) {
+      console.warn('AgentLock: WebGL initialization failed, falling back to flat navy background.', err);
+      return;
+    }
+
+    // Pointer state (moved to window per instructions)
+    let pointerX = -9999;
+    let pointerZ = -9999;
+    let targetPointerX = -9999;
+    let targetPointerZ = -9999;
+    let isPointerOver = false;
+
+    const handlePointerMove = (e: MouseEvent) => {
+      if (prefersReducedMotion || !canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      if (!camera) return;
+      _raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+      if (_raycaster.ray.intersectPlane(_pointerPlane, _intersectionPoint)) {
+        targetPointerX = _intersectionPoint.x;
+        targetPointerZ = _intersectionPoint.z;
+        isPointerOver = true;
+      }
+    };
+
+    const handlePointerLeave = () => {
+      isPointerOver = false;
+      targetPointerX = -9999;
+      targetPointerZ = -9999;
+    };
+
+    window.addEventListener('mousemove', handlePointerMove, { passive: true });
+    window.addEventListener('mouseleave', handlePointerLeave, { passive: true });
+
+    // Window resize
+    const handleResize = () => {
+      if (!camera || !renderer) return;
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(maxPixelRatio);
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Tab visibility handling
+    let isTabVisible = !document.hidden;
+    const handleVisibilityChange = () => {
+      isTabVisible = !document.hidden;
+      if (isTabVisible && !prefersReducedMotion) {
+        lastTime = performance.now();
+        tick();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Static frame for prefers-reduced-motion
+    if (prefersReducedMotion) {
+      renderer.render(scene, camera);
+      return () => {
+        window.removeEventListener('mousemove', handlePointerMove);
+        window.removeEventListener('mouseleave', handlePointerLeave);
+        window.removeEventListener('resize', handleResize);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        renderer?.forceContextLoss();
+        renderer?.dispose();
+      };
+    }
+
+    // Main render loop
+    let lastTime = performance.now();
+    let simTime = 0;
+
+    const tick = () => {
+      if (!isTabVisible || !renderer || !scene || !camera || !instancedMesh) return;
+
+      const now = performance.now();
+      const delta = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
+      const {
+        autoAnimate: doAuto,
+        waveAmplitude: amp,
+        waveSpeed: spd,
+        colorBase: currentBase,
+        colorHigh: currentHigh,
+      } = propsRef.current;
+
+      simTime += delta * spd;
+
+      // Smooth pointer lerp
+      if (isPointerOver) {
+        pointerX += (targetPointerX - pointerX) * 0.12;
+        pointerZ += (targetPointerZ - pointerZ) * 0.12;
+      } else {
+        pointerX += (-9999 - pointerX) * 0.05;
+        pointerZ += (-9999 - pointerZ) * 0.05;
+      }
+
+      _baseColor.set(currentBase);
+      _highColor.set(currentHigh);
+
+      const countX = effectiveGridSize;
+      const countZ = effectiveGridSize;
+      const totalCount = countX * countZ;
+      const spacing = 1.15;
+      const offsetX = ((countX - 1) * spacing) / 2;
+      const offsetZ = ((countZ - 1) * spacing) / 2;
+
+      for (let i = 0; i < totalCount; i++) {
+        const ix = i % countX;
+        const iz = Math.floor(i / countX);
+        const x = ix * spacing - offsetX;
+        const z = iz * spacing - offsetZ;
+
+        // Wave heights
+        let h = 0;
+        if (doAuto) {
+          const distFromCenter = Math.sqrt(x * x + z * z);
+          h += Math.sin(distFromCenter * 0.45 - simTime * 1.8) * 1.1;
+          h += Math.sin(x * 0.35 + simTime * 1.2) * 0.6;
+          h += Math.cos(z * 0.35 + simTime * 1.4) * 0.6;
+        } else {
+          // Calm subtle ambient motion for dashboard/app routes
+          h += Math.sin(x * 0.2 + simTime * 0.6) * 0.4;
+          h += Math.cos(z * 0.2 + simTime * 0.7) * 0.4;
+        }
+
+        // Pointer ripple
+        const dx = x - pointerX;
+        const dz = z - pointerZ;
+        const pointerDist = Math.sqrt(dx * dx + dz * dz);
+        if (pointerDist < 10) {
+          const factor = Math.max(0, 1 - pointerDist / 10);
+          h += Math.sin(pointerDist * 1.2 - simTime * 4.0) * factor * 2.8;
+        }
+
+        const finalH = h * amp;
+
+        // Position & Scale
+        _dummy.position.set(x, finalH * 0.7, z);
+        _dummy.rotation.x = finalH * 0.05;
+        _dummy.rotation.z = -finalH * 0.05;
+        const scaleY = Math.max(0.2, 1 + finalH * 0.5);
+        _dummy.scale.set(1, scaleY, 1);
+        _dummy.updateMatrix();
+        instancedMesh.setMatrixAt(i, _dummy.matrix);
+
+        // Color interpolation: higher peaks turn to coral
+        const colorT = Math.min(Math.max((finalH + 1.2) / 3.0, 0), 1);
+        _color.copy(_baseColor).lerp(_highColor, colorT);
+        instancedMesh.setColorAt(i, _color);
+      }
+
+      instancedMesh.instanceMatrix.needsUpdate = true;
+      if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+
+      renderer.render(scene, camera);
+      animFrameId = requestAnimationFrame(tick);
+    };
+
+    animFrameId = requestAnimationFrame(tick);
+
+    return () => {
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      window.removeEventListener('mousemove', handlePointerMove);
+      window.removeEventListener('mouseleave', handlePointerLeave);
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+
+      if (renderer) {
+        renderer.forceContextLoss();
+        renderer.dispose();
+      }
+    };
+  }, [gridSize]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`fixed inset-0 pointer-events-none -z-10 overflow-hidden ${className}`}
+      aria-hidden="true"
+      style={{ backgroundColor: '#060D1F' }}
+    >
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full block"
+        style={{ width: '100vw', height: '100vh' }}
+      />
+    </div>
+  );
+}

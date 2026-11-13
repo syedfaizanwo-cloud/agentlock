@@ -1,7 +1,5 @@
 User-agent: *
 Allow: /
-Disallow: /dashboard
-Disallow: /agents
-Disallow: /scans
-Disallow: /reports
-Sitemap: https://agentlock.dev/sitemap.xml
+Disallow: /thank-you
+
+Sitemap: https://agentlock.ai/sitemap.xml

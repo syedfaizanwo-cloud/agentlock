@@ -14,25 +14,27 @@ import {
   Lock,
 } from 'lucide-react';
 import SEOHead from '@/components/seo/SEOHead';
+import AppNavbar from '@/components/layout/AppNavbar';
+import TextRoll from '@/components/ui/text-roll';
 
 const SITE_URL = import.meta.env.VITE_SITE_URL || 'https://agentlock.dev';
 
 const STEPS = [
   {
     num: '01',
-    title: 'Register your agent',
+    title: 'REGISTER YOUR AGENT',
     description: 'Point AgentLock at your AI agent endpoint. Provide the URL, authentication headers, and agent type.',
     icon: Bot,
   },
   {
     num: '02',
-    title: 'Select attack categories',
+    title: 'SELECT ATTACK CATEGORIES',
     description: 'Choose which vulnerability classes to test: prompt injection, data leakage, tool abuse, memory poisoning, and more.',
     icon: ScanLine,
   },
   {
     num: '03',
-    title: 'Review findings',
+    title: 'REVIEW FINDINGS',
     description: 'Get detailed evidence of each vulnerability with severity, impact assessment, and remediation guidance.',
     icon: FileSearch,
   },
@@ -40,23 +42,23 @@ const STEPS = [
 
 const CATEGORIES = [
   {
-    title: 'Prompt Injection',
+    title: 'PROMPT INJECTION',
     description: 'Tests whether your agent follows instructions from untrusted input that override its system prompt.',
     icon: Syringe,
   },
   {
-    title: 'Data Leakage',
+    title: 'DATA LEAKAGE',
     description: 'Checks for PII exposure, training data extraction, and sensitive context leaking between sessions.',
     icon: Database,
   },
   {
-    title: 'Tool Abuse',
+    title: 'TOOL ABUSE',
     description: 'Probes for unrestricted file access, command injection, and privilege escalation through agent tools.',
     icon: Wrench,
   },
   {
-    title: 'Memory Poisoning',
-    description: 'Detects persistent memory contamination where injected instructions affect future sessions and users.',
+    title: 'MEMORY POISONING',
+    description: 'Detects persistent memory contamination where injected instructions affect future sessions and other users.',
     icon: BrainCircuit,
   },
 ];
@@ -87,7 +89,7 @@ export default function Landing() {
   };
 
   return (
-    <div style={{ backgroundColor: 'var(--color-base)', color: 'var(--color-text-primary)' }}>
+    <div className="min-h-screen flex flex-col relative text-cream" style={{ backgroundColor: 'transparent' }}>
       <SEOHead
         title="AI Agent Vulnerability Scanner"
         description="Open-source vulnerability scanner that tests AI agents for prompt injection, data leakage, tool abuse, and memory poisoning. Find security flaws before attackers do."
@@ -98,213 +100,212 @@ export default function Landing() {
         <script type="application/ld+json">{JSON.stringify(jsonLdApp)}</script>
       </Helmet>
 
-      {/* Navigation */}
-      <nav
-        className="sticky top-0 z-50 px-6 lg:px-12 py-4"
-        style={{
-          backgroundColor: 'var(--color-base)',
-          borderBottom: '1px solid var(--color-edge-highlight)',
-        }}
-        aria-label="Site navigation"
-      >
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 no-underline min-h-[40px]" aria-label="AgentLock home">
-            <Shield size={24} style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
-            <span className="text-lg font-bold" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-text-primary)' }}>
-              AgentLock
-            </span>
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link to="/dashboard" className="text-sm min-h-[40px] flex items-center no-underline" style={{ color: 'var(--color-text-secondary)' }}>
-              Dashboard
-            </Link>
-            <a
-              href="https://github.com/syedfaizanwo-cloud/agentlock"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="AgentLock GitHub repository"
-              className="flex items-center gap-2 text-sm min-h-[40px] no-underline"
-              style={{ color: 'var(--color-text-secondary)' }}
-            >
-              <Github size={18} aria-hidden="true" />
-              <span className="hidden sm:inline">GitHub</span>
-            </a>
-          </div>
-        </div>
-      </nav>
+      {/* Navigation: Fixed top bar with wordmark & hamburger button only */}
+      <AppNavbar />
 
-      <main>
-      {/* Hero */}
-      <section className="px-6 lg:px-12 py-20 lg:py-32">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-6"
-            style={{ fontFamily: 'var(--font-heading)' }}
+      <main className="flex-1 relative z-10 pt-24 px-6 lg:px-12 pb-16">
+        {/* Hero Section with solid navy panel so text never sits on raw animated cubes */}
+        <section className="py-12 lg:py-20 max-w-4xl mx-auto">
+          <div
+            className="neu-card shadow-raised-lg p-8 sm:p-14 text-center relative overflow-hidden"
+            style={{ backgroundColor: 'rgba(10, 22, 51, 0.92)' }}
           >
-            Find vulnerabilities in your AI agents before attackers do
-          </h1>
-          <p
-            className="text-base sm:text-lg max-w-2xl mx-auto mb-10 leading-relaxed"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            AgentLock is an open-source security scanner that tests AI agents for prompt injection,
-            data leakage, tool abuse, and memory poisoning. It runs controlled attacks against your agent
-            and reports what it found, with evidence.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              to="/dashboard"
-              className="neu-btn neu-btn-primary px-8 py-3 min-h-[48px] text-base font-semibold inline-flex items-center gap-2 no-underline"
-            >
-              Get Started
-              <ArrowRight size={18} aria-hidden="true" />
-            </Link>
-            <a
-              href="https://github.com/syedfaizanwo-cloud/agentlock"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="neu-btn px-8 py-3 min-h-[48px] text-base inline-flex items-center gap-2 no-underline"
-            >
-              <Github size={18} aria-hidden="true" />
-              View Source
-            </a>
-          </div>
-        </div>
-      </section>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-6 neu-pill text-xs font-mono uppercase tracking-wider text-coral">
+              <Shield size={14} aria-hidden="true" />
+              <span>Automated Red Teaming Console</span>
+            </div>
 
-      {/* How a scan works */}
-      <section className="px-6 lg:px-12 py-16 lg:py-24" style={{ backgroundColor: 'var(--color-deep)' }}>
-        <div className="max-w-5xl mx-auto">
-          <h2
-            className="text-2xl sm:text-3xl font-bold text-center mb-14"
-            style={{ fontFamily: 'var(--font-heading)' }}
-          >
-            How a scan works
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <h1
+              className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-cream tracking-tight"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              Find vulnerabilities in your AI agents before attackers do
+            </h1>
+
+            <p
+              className="text-base sm:text-lg max-w-2xl mx-auto mb-10 leading-relaxed text-cream-soft"
+            >
+              AgentLock is an open-source security scanner that tests AI agents for prompt injection,
+              data leakage, tool abuse, and memory poisoning. It runs controlled attacks against your agent
+              and reports what it found, with evidence.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                to="/dashboard"
+                className="neu-btn neu-btn-primary px-8 py-3.5 min-h-[48px] text-base font-semibold inline-flex items-center gap-2 no-underline"
+              >
+                Get Started
+                <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+              <a
+                href="https://github.com/syedfaizanwo-cloud/agentlock"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View AgentLock on GitHub (opens in new tab)"
+                className="neu-btn px-8 py-3.5 min-h-[48px] text-base inline-flex items-center gap-2 no-underline text-cream"
+              >
+                <Github size={18} aria-hidden="true" />
+                View Source
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* How a scan works */}
+        <section className="py-16 max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h2
+              className="text-2xl sm:text-3xl font-bold tracking-wider text-cream uppercase"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              <TextRoll stagger={0.015}>HOW A SCAN WORKS</TextRoll>
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {STEPS.map((step) => (
-              <div key={step.num} className="neu-card shadow-raised-md p-7">
-                <div className="flex items-center gap-3 mb-4">
+              <div
+                key={step.num}
+                className="neu-card shadow-raised-md p-7 relative"
+                style={{ backgroundColor: 'rgba(10, 22, 51, 0.92)' }}
+              >
+                <div className="flex items-center justify-between mb-5">
                   <span
-                    className="text-lg font-bold"
-                    style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-accent)' }}
+                    className="text-xl font-bold text-coral"
+                    style={{ fontFamily: 'var(--font-mono)' }}
                   >
                     {step.num}
                   </span>
-                  <step.icon size={22} style={{ color: 'var(--color-text-muted)' }} aria-hidden="true" />
+                  <div className="shadow-inset-sm p-2.5 rounded-[var(--radius-control)]">
+                    <step.icon size={22} style={{ color: 'var(--color-coral)' }} aria-hidden="true" />
+                  </div>
                 </div>
-                <h3 className="text-base font-semibold mb-2" style={{ fontFamily: 'var(--font-heading)' }}>
+                <h3
+                  className="text-base font-bold mb-2 tracking-wide text-cream"
+                  style={{ fontFamily: 'var(--font-heading)' }}
+                >
                   {step.title}
                 </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                <p className="text-sm leading-relaxed text-cream-soft">
                   {step.description}
                 </p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* What AgentLock tests */}
-      <section className="px-6 lg:px-12 py-16 lg:py-24">
-        <div className="max-w-5xl mx-auto">
-          <h2
-            className="text-2xl sm:text-3xl font-bold text-center mb-14"
-            style={{ fontFamily: 'var(--font-heading)' }}
-          >
-            What AgentLock tests
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+        {/* What AgentLock tests */}
+        <section className="py-16 max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h2
+              className="text-2xl sm:text-3xl font-bold tracking-wider text-cream uppercase"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              <TextRoll stagger={0.015}>WHAT AGENTLOCK TESTS</TextRoll>
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
             {CATEGORIES.map((cat) => (
-              <div key={cat.title} className="neu-card shadow-raised-md p-7">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="shadow-inset-sm rounded-[var(--radius-control)] p-2">
-                    <cat.icon size={20} style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
+              <div
+                key={cat.title}
+                className="neu-card shadow-raised-md p-7"
+                style={{ backgroundColor: 'rgba(10, 22, 51, 0.92)' }}
+              >
+                <div className="flex items-center gap-3.5 mb-4">
+                  <div className="shadow-inset-sm rounded-[var(--radius-control)] p-2.5">
+                    <cat.icon size={20} style={{ color: 'var(--color-coral)' }} aria-hidden="true" />
                   </div>
-                  <h3 className="text-base font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
+                  <h3 className="text-base font-bold tracking-wide text-cream" style={{ fontFamily: 'var(--font-heading)' }}>
                     {cat.title}
                   </h3>
                 </div>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                <p className="text-sm leading-relaxed text-cream-soft">
                   {cat.description}
                 </p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Safety boundary */}
-      <section className="px-6 lg:px-12 py-16 lg:py-24" style={{ backgroundColor: 'var(--color-deep)' }}>
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="shadow-inset-sm rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6">
-            <Lock size={28} style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
+        {/* Safety boundary */}
+        <section className="py-16 max-w-3xl mx-auto text-center">
+          <div
+            className="neu-card shadow-raised-md p-8 sm:p-12"
+            style={{ backgroundColor: 'rgba(10, 22, 51, 0.92)' }}
+          >
+            <div className="shadow-inset-sm rounded-full w-14 h-14 flex items-center justify-center mx-auto mb-6">
+              <Lock size={26} style={{ color: 'var(--color-coral)' }} aria-hidden="true" />
+            </div>
+            <h2
+              className="text-xl sm:text-2xl font-bold mb-4 text-cream tracking-wide uppercase"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              <TextRoll stagger={0.015}>CONTROLLED TESTING, REAL EVIDENCE</TextRoll>
+            </h2>
+            <p className="text-sm leading-relaxed max-w-xl mx-auto text-cream-soft">
+              AgentLock runs attack simulations in a controlled environment against agents you own.
+              It does not attack third-party systems, exfiltrate data, or cause permanent changes.
+              Every finding comes with the exact input that triggered it and the agent's response,
+              so you can verify and reproduce it.
+            </p>
           </div>
-          <h2
-            className="text-2xl font-bold mb-4"
-            style={{ fontFamily: 'var(--font-heading)' }}
-          >
-            Controlled testing, real evidence
-          </h2>
-          <p className="text-sm leading-relaxed max-w-xl mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
-            AgentLock runs attack simulations in a controlled environment against agents you own.
-            It does not attack third-party systems, exfiltrate data, or cause permanent changes.
-            Every finding comes with the exact input that triggered it and the agent's response,
-            so you can verify and reproduce it.
-          </p>
-        </div>
-      </section>
+        </section>
 
-      {/* Open source CTA */}
-      <section className="px-6 lg:px-12 py-16 lg:py-24">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2
-            className="text-2xl font-bold mb-4"
-            style={{ fontFamily: 'var(--font-heading)' }}
+        {/* Open source CTA */}
+        <section className="py-16 max-w-3xl mx-auto text-center">
+          <div
+            className="neu-card shadow-raised-md p-8 sm:p-12"
+            style={{ backgroundColor: 'rgba(10, 22, 51, 0.92)' }}
           >
-            Open source
-          </h2>
-          <p className="text-sm leading-relaxed max-w-xl mx-auto mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-            AgentLock is open source. Inspect the attack engine, contribute new attack patterns,
-            or self-host the entire platform.
-          </p>
-          <a
-            href="https://github.com/syedfaizanwo-cloud/agentlock"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View AgentLock on GitHub"
-            className="neu-btn neu-btn-primary px-8 py-3 min-h-[48px] text-base font-semibold inline-flex items-center gap-2 no-underline"
-          >
-            <Github size={20} aria-hidden="true" />
-            View on GitHub
-          </a>
-        </div>
-      </section>
+            <h2
+              className="text-2xl font-bold mb-4 text-cream tracking-wide uppercase"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              <TextRoll stagger={0.015}>OPEN SOURCE PLATFORM</TextRoll>
+            </h2>
+            <p className="text-sm leading-relaxed max-w-xl mx-auto mb-8 text-cream-soft">
+              AgentLock is open source. Inspect the attack engine, contribute new attack patterns,
+              or self-host the entire platform.
+            </p>
+            <a
+              href="https://github.com/syedfaizanwo-cloud/agentlock"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View AgentLock on GitHub (opens in new tab)"
+              className="neu-btn neu-btn-primary px-8 py-3.5 min-h-[48px] text-base font-semibold inline-flex items-center gap-2 no-underline"
+            >
+              <Github size={20} aria-hidden="true" />
+              View on GitHub
+            </a>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
       <footer
-        className="px-6 lg:px-12 py-8"
+        className="px-6 lg:px-12 py-8 relative z-10"
         style={{
-          backgroundColor: 'var(--color-deep)',
+          backgroundColor: '#060D1F',
           borderTop: '1px solid var(--color-edge-highlight)',
         }}
       >
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Shield size={18} style={{ color: 'var(--color-accent)' }} aria-hidden="true" />
-            <span className="text-sm font-medium" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-text-secondary)' }}>
-              AgentLock
+            <Shield size={18} style={{ color: 'var(--color-coral)' }} aria-hidden="true" />
+            <span className="text-sm font-medium text-cream-soft" style={{ fontFamily: 'var(--font-heading)' }}>
+              AgentLock Security
             </span>
           </div>
           <div className="flex items-center gap-6">
-            <Link to="/dashboard" className="text-xs no-underline" style={{ color: 'var(--color-text-muted)' }}>
+            <Link to="/dashboard" className="text-xs no-underline text-cream-soft hover:text-coral transition-colors">
               Dashboard
             </Link>
-            <Link to="/agents" className="text-xs no-underline" style={{ color: 'var(--color-text-muted)' }}>
+            <Link to="/agents" className="text-xs no-underline text-cream-soft hover:text-coral transition-colors">
               Agents
             </Link>
-            <Link to="/reports" className="text-xs no-underline" style={{ color: 'var(--color-text-muted)' }}>
+            <Link to="/reports" className="text-xs no-underline text-cream-soft hover:text-coral transition-colors">
               Reports
             </Link>
             <a
@@ -312,8 +313,7 @@ export default function Landing() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="AgentLock on GitHub"
-              className="text-xs no-underline"
-              style={{ color: 'var(--color-text-muted)' }}
+              className="text-xs no-underline text-cream-soft hover:text-coral transition-colors"
             >
               GitHub
             </a>

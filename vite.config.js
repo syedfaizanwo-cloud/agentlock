@@ -12,12 +12,15 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           helmet: ['react-helmet-async'],
           axios: ['axios'],
+          three: ['three'],
+          motion: ['framer-motion'],
         },
       },
     },

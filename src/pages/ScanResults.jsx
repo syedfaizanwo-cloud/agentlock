@@ -12,6 +12,7 @@ import { scanApi, reportApi } from '@/services/api';
 import { MOCKS_ENABLED, mockScanResults } from '@/mocks/data';
 import { formatDate, formatDuration, severityWeight, copyToClipboard } from '@/utils/helpers';
 import { AlertTriangle, ShieldAlert, ShieldCheck, Info } from 'lucide-react';
+import TextRoll from '@/components/ui/text-roll';
 
 const CATEGORY_LABELS = {
   prompt_injection: 'Prompt Injection',
@@ -220,9 +221,11 @@ startxref
         <div className="flex flex-col gap-10">
           {Object.entries(groupedFindings).map(([category, findings]) => (
             <section key={category}>
-              <h2 className="text-lg font-semibold mb-4" style={{ fontFamily: 'var(--font-heading)', color: 'var(--color-text-primary)' }}>
-                {CATEGORY_LABELS[category] || category}
-                <span className="text-sm font-normal ml-2" style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-muted)' }}>
+              <h2 className="text-lg font-semibold mb-4 flex items-center justify-between text-cream uppercase" style={{ fontFamily: 'var(--font-heading)' }}>
+                <TextRoll stagger={0.012} duration={0.2}>
+                  {(CATEGORY_LABELS[category] || category).toUpperCase()}
+                </TextRoll>
+                <span className="text-xs font-mono text-cream-soft font-normal" style={{ fontFamily: 'var(--font-mono)' }}>
                   {findings.length} finding{findings.length !== 1 ? 's' : ''}
                 </span>
               </h2>
