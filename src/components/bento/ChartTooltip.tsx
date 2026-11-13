@@ -19,24 +19,24 @@ export const ChartTooltip: React.FC<ChartTooltipProps> = ({
 
   return (
     <div
-      className="p-2.5 rounded-[10px] text-xs font-mono shadow-[0_8px_16px_rgba(0,0,0,0.6)] pointer-events-none select-none z-50 border border-[#2A2A2A]"
+      className="p-2.5 rounded-[10px] text-xs font-mono shadow-[4px_4px_12px_#030714] pointer-events-none select-none z-50 border border-[#12234A]"
       style={{
-        backgroundColor: '#151515',
-        color: '#FFFFFF',
+        backgroundColor: '#0A1633',
+        color: '#F5EDDC',
       }}
     >
-      {label && <div className="text-[11px] text-[#8A8A8A] font-semibold mb-1">{label}</div>}
+      {label && <div className="text-[11px] text-[#C8C0AC] font-semibold mb-1">{label}</div>}
       <div className="space-y-1">
         {payload.map((entry, idx) => (
           <div key={idx} className="flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-1.5">
               <span
                 className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: entry.color || '#E6CBA8' }}
+                style={{ backgroundColor: entry.color || '#FF6F59' }}
               />
-              <span className="text-[#BDBDBD]">{entry.name || 'Value'}:</span>
+              <span className="text-[#C8C0AC]">{entry.name || 'Value'}:</span>
             </div>
-            <span className="font-bold text-white">
+            <span className="font-bold text-[#F5EDDC]">
               {typeof entry.value === 'number'
                 ? entry.value.toLocaleString()
                 : entry.value}{' '}

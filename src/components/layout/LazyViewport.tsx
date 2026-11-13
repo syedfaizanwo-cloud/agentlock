@@ -54,7 +54,7 @@ export const LazyViewport: React.FC<LazyViewportProps> = ({
       ) : (
         placeholder || (
           <div
-            className="w-full rounded-2xl bg-[#0D0D0D] skeleton-shimmer my-4"
+            className="w-full rounded-2xl bg-[#0A1633] my-4"
             style={{ height: minHeight }}
             aria-hidden="true"
           />

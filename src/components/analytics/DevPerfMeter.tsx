@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export const DevPerfMeter: React.FC = () => {
   const [isEnabled, setIsEnabled] = useState(false);
@@ -57,16 +57,16 @@ export const DevPerfMeter: React.FC = () => {
 
   if (!isEnabled) return null;
 
-  const fpsColor = fps >= 55 ? '#6FAF8A' : fps >= 40 ? '#E6CBA8' : '#C0504D';
+  const fpsColor = fps >= 55 ? '#34D399' : fps >= 40 ? '#FACC15' : '#E11D48';
 
   return (
     <div
-      className="fixed bottom-3 left-3 z-[9999] pointer-events-auto select-none bg-[#0D0D0D]/95 border border-[#3D3D3D] rounded-xl px-3 py-2 text-[11px] font-mono shadow-2xl flex items-center gap-3 backdrop-blur-none"
-      style={{ color: '#FFFFFF' }}
+      className="fixed bottom-3 left-3 z-[9999] pointer-events-auto select-none bg-[#0A1633] border border-[#12234A] rounded-xl px-3 py-2 text-[11px] font-mono shadow-[4px_4px_12px_#030714] flex items-center gap-3"
+      style={{ color: '#F5EDDC' }}
     >
       <div className="flex items-center gap-1.5">
         <span
-          className="w-2 h-2 rounded-full animate-pulse"
+          className="w-2 h-2 rounded-full"
           style={{ backgroundColor: fpsColor }}
         />
         <span className="font-bold text-xs" style={{ color: fpsColor }}>
@@ -74,11 +74,11 @@ export const DevPerfMeter: React.FC = () => {
         </span>
       </div>
 
-      <div className="text-[#8A8A8A] flex items-center gap-2 border-l border-[#2A2A2A] pl-2.5">
-        <span>Min: <strong className="text-white">{minFps}</strong></span>
+      <div className="text-[#C8C0AC] flex items-center gap-2 border-l border-[#12234A] pl-2.5">
+        <span>Min: <strong className="text-[#F5EDDC]">{minFps}</strong></span>
         <span>{frameTimeMs}ms</span>
         {memoryMb && (
-          <span className="text-[#E6CBA8]">{memoryMb}MB</span>
+          <span className="text-[#FF6F59]">{memoryMb}MB</span>
         )}
       </div>
 
@@ -87,7 +87,7 @@ export const DevPerfMeter: React.FC = () => {
           setMinFps(fps);
         }}
         title="Reset min FPS"
-        className="text-[10px] text-[#8A8A8A] hover:text-[#E6CBA8] px-1 py-0.5 rounded border border-[#2A2A2A] hover:border-[#E6CBA8] transition-colors"
+        className="text-[10px] text-[#C8C0AC] hover:text-[#FF6F59] px-1 py-0.5 rounded border border-[#12234A] hover:border-[#FF6F59] transition-colors"
       >
         Reset
       </button>

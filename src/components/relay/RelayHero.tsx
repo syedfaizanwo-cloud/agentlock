@@ -1,233 +1,163 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  Play,
-  MousePointer,
-  Plus,
-  CornerDownRight,
-  Clock,
+  ShieldAlert,
+  Bot,
+  Zap,
+  Eye,
+  FileCheck2,
+  CheckCircle2,
+  ArrowRight,
+  Shield,
 } from 'lucide-react';
 
 interface RelayHeroProps {
-  onExploreCommand: () => void;
-  onOpenSimulations: () => void;
-  pendingApprovalsCount: number;
+  onStartScan?: () => void;
+  onHowItWorks?: () => void;
+  backendOnline?: boolean;
+  latencyMs?: number;
 }
 
 export const RelayHero: React.FC<RelayHeroProps> = ({
-  onExploreCommand,
-  onOpenSimulations,
+  onStartScan,
+  onHowItWorks,
+  backendOnline = false,
+  latencyMs = 0,
 }) => {
-  const [activeStep, setActiveStep] = useState<string>('approval');
+  const stages = [
+    { num: '01', title: 'Target Agent', desc: 'Authorized endpoint verification', icon: Bot },
+    { num: '02', title: 'Attack Engine', desc: 'Controlled red-team simulation', icon: Zap },
+    { num: '03', title: 'Observe', desc: 'Capture raw prompt & responses', icon: Eye },
+    { num: '04', title: 'Analyze', desc: 'Classify exploit vulnerability', icon: ShieldAlert },
+    { num: '05', title: 'Report', desc: 'Actionable code remediation', icon: FileCheck2 },
+  ];
 
   return (
-    <section className="relative pt-2 pb-8 overflow-hidden">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        {/* Left Column: Black & White Editorial */}
-        <div className="lg:col-span-6 space-y-6">
+    <section id="top" className="relative pt-6 pb-12 overflow-hidden space-y-12">
+      {/* Top Hero Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+        {/* Left Column: Heading & Primary Actions */}
+        <div className="lg:col-span-7 space-y-6">
           {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#151515] border border-[#2A2A2A]">
-            <span className="w-2 h-2 rounded-full bg-[#E6CBA8] shadow-[0_0_8px_rgba(230,203,168,0.5)] animate-ping" />
-            <span className="text-xs font-mono text-[#BDBDBD] tracking-tight">
-              AGENTLOCK 2.0 // 6 AUTONOMOUS AGENTS GUARDED
+          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#0A1633] border border-[#12234A] shadow-[inset_2px_2px_4px_#030714]">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                backendOnline ? 'bg-[#34D399]' : 'bg-[#FF6F59]'
+              }`}
+            />
+            <span className="text-xs font-mono text-[#C8C0AC] tracking-tight">
+              AGENTLOCK // {backendOnline ? `BACKEND CONNECTED (${latencyMs}ms)` : 'STANDALONE SECURE RUNTIME'}
             </span>
           </div>
 
-          {/* Main Headline */}
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08]">
-            The AI defenses run{' '}
-            <span className="font-serif italic font-normal text-[#E6CBA8] drop-shadow-[0_0_25px_rgba(230,203,168,0.3)] underline decoration-[#B89B72]/40 decoration-1 underline-offset-8">
-              themselves.
-            </span>
-          </h2>
+          {/* Single H1 on whole page */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-[#F5EDDC] leading-[1.08] font-sans">
+            Find weaknesses in AI agents before attackers do.
+          </h1>
 
           {/* Subtitle */}
-          <p className="text-sm sm:text-base text-[#8A8A8A] font-normal leading-relaxed max-w-xl">
-            AgentLock 2.0 executes deterministic zero-trust runtime guards across all autonomous agent tool calls, halting code execution threats before process spawn.
+          <p className="text-base sm:text-lg text-[#C8C0AC] font-normal leading-relaxed max-w-xl font-sans">
+            AgentLock runs controlled adversarial tests against AI agents you own and reports what it can make them do, with evidence and fixes.
           </p>
 
-          {/* Primary Gold & Secondary Buttons */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              onClick={onExploreCommand}
-              className="px-6 py-3 rounded-full bg-[#E6CBA8] hover:bg-[#F7E7CE] text-[#0A0A0A] font-bold text-xs sm:text-sm tracking-wide transition-all shadow-[0_0_20px_rgba(230,203,168,0.25)] hover:-translate-y-0.5"
+          {/* Primary & Secondary Buttons */}
+          <div className="flex flex-wrap items-center gap-4 pt-2">
+            <a
+              href="#scan"
+              onClick={onStartScan}
+              className="px-7 py-3.5 rounded-xl bg-[#FF6F59] hover:bg-[#E85A44] text-[#060D1F] font-bold text-xs sm:text-sm font-mono tracking-wide transition-all shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] active:scale-95 inline-flex items-center gap-2"
             >
-              Open SecOps Command
-            </button>
+              <span>Start a scan</span>
+              <ArrowRight className="w-4 h-4" />
+            </a>
 
-            <button
-              onClick={onOpenSimulations}
-              className="px-5 py-3 rounded-full bg-transparent border border-[#2A2A2A] hover:border-[#E6CBA8] text-white font-medium text-xs sm:text-sm tracking-wide transition-all flex items-center gap-2 hover:bg-[#151515]"
+            <a
+              href="#overview"
+              onClick={onHowItWorks}
+              className="px-6 py-3.5 rounded-xl bg-[#0A1633] border border-[#12234A] hover:border-[#FF6F59] text-[#F5EDDC] font-medium text-xs sm:text-sm font-mono tracking-wide transition-all shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A]"
             >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              Watch Simulation, 2 min
-            </button>
+              How it works
+            </a>
           </div>
 
-          <div className="text-xs font-mono text-[#5C5C5C] pt-1">
-            free 14-day evaluation / no credit card / instant gateway deployment
+          {/* Safety Boundary Banner */}
+          <div className="pt-2 flex items-start gap-2.5 text-xs font-sans text-[#C8C0AC]/80">
+            <Shield className="w-4 h-4 text-[#34D399] shrink-0 mt-0.5" />
+            <span>
+              AgentLock tests in an authorized sandbox. It does not attack public agents or run destructive actions.
+            </span>
           </div>
         </div>
 
-        {/* Right Column: Tilting Glass Workflow Window */}
-        <div className="lg:col-span-6 relative">
-          <div className="relative rounded-2xl bg-[#0D0D0D] border border-[#2A2A2A] p-5 shadow-2xl transition-transform duration-500 hover:[transform:perspective(1200px)_rotateX(2deg)_rotateY(-1deg)]">
-            {/* Window Top Bar */}
-            <div className="flex items-center justify-between pb-4 border-b border-[#2A2A2A] text-xs font-mono">
-              <div className="flex items-center gap-3 text-[#8A8A8A]">
-                <span className="text-white font-medium">Policy Engine: L3 DB Write</span>
-                <span className="text-[#3D3D3D]">|</span>
-                <span>3 steps / 1 branch</span>
+        {/* Right Column: Inset Visual Simulation Window */}
+        <div className="lg:col-span-5 relative">
+          <div className="rounded-2xl bg-[#0A1633] border border-[#12234A] p-6 shadow-[8px_8px_16px_#030714,-8px_-8px_16px_#12234A] space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#12234A] text-xs font-mono">
+              <span className="text-[#F5EDDC] font-bold flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#FF6F59]" />
+                Adversarial Simulation Harness
+              </span>
+              <span className="text-[10px] text-[#C8C0AC] px-2 py-0.5 rounded bg-[#060D1F] border border-[#12234A]">
+                FASTAPI SYNCHRONIZED
+              </span>
+            </div>
+
+            <div className="space-y-3 font-mono text-xs">
+              <div className="p-3 rounded-xl bg-[#060D1F] border border-[#12234A] shadow-[inset_2px_2px_4px_#030714] space-y-1">
+                <div className="text-[10px] text-[#C8C0AC] uppercase">Test Vector 01</div>
+                <div className="text-[#FF6F59] font-bold">Prompt Injection Override</div>
+                <div className="text-[11px] text-[#C8C0AC]/70">Testing indirect instruction hijacking in RAG contexts</div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 text-white text-[11px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#6FAF8A] animate-ping"></span>
-                  running
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-[rgba(230,203,168,0.14)] border border-[#B89B72] text-[#E6CBA8] text-[10px] font-semibold">
-                  100%
-                </span>
+              <div className="p-3 rounded-xl bg-[#060D1F] border border-[#12234A] shadow-[inset_2px_2px_4px_#030714] space-y-1">
+                <div className="text-[10px] text-[#C8C0AC] uppercase">Test Vector 02</div>
+                <div className="text-[#F5EDDC] font-bold">Data Leakage &amp; Exfiltration</div>
+                <div className="text-[11px] text-[#C8C0AC]/70">Testing system prompt and secret token extraction</div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-[#060D1F] border border-[#12234A] shadow-[inset_2px_2px_4px_#030714] space-y-1">
+                <div className="text-[10px] text-[#C8C0AC] uppercase">Test Vector 03</div>
+                <div className="text-[#34D399] font-bold">Tool Abuse &amp; Privilege Escalation</div>
+                <div className="text-[11px] text-[#C8C0AC]/70">Testing SQL/bash argument manipulation safeguards</div>
               </div>
             </div>
 
-            {/* Window Body with Toolbar & Node Flow */}
-            <div className="flex gap-4 pt-4 pb-3">
-              {/* Left Toolbar */}
-              <div className="flex flex-col gap-2 border-r border-[#2A2A2A] pr-3 text-[#8A8A8A]">
-                <button className="p-1.5 rounded-lg bg-[#E6CBA8] text-[#0A0A0A] font-bold shadow-md">
-                  <MousePointer className="w-3.5 h-3.5" />
-                </button>
-                <button className="p-1.5 rounded-lg bg-[#151515] border border-[#2A2A2A] hover:border-[#E6CBA8] text-[#BDBDBD]">
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-                <button className="p-1.5 rounded-lg bg-[#151515] border border-[#2A2A2A] hover:border-[#E6CBA8] text-[#BDBDBD]">
-                  <CornerDownRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Node Flow Canvas */}
-              <div className="flex-1 relative min-h-[220px]">
-                {/* SVG Connecting Wires */}
-                <svg
-                  className="absolute inset-0 w-full h-full pointer-events-none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M 120 70 C 160 70, 160 38, 200 38"
-                    fill="none"
-                    stroke="#E6CBA8"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 2"
-                  />
-                  <path
-                    d="M 120 70 C 160 70, 160 115, 200 115"
-                    fill="none"
-                    stroke="#3D3D3D"
-                    strokeWidth="1.5"
-                  />
-                  <path
-                    d="M 290 38 C 320 38, 320 75, 350 75"
-                    fill="none"
-                    stroke="#E6CBA8"
-                    strokeWidth="1.5"
-                  />
-                </svg>
-
-                {/* Node 1: Root Ingestion */}
-                <div
-                  onClick={() => setActiveStep('trigger')}
-                  className={`absolute left-0 top-10 w-28 p-2.5 rounded-xl border transition-all cursor-pointer font-mono text-left ${
-                    activeStep === 'trigger'
-                      ? 'bg-[#1E1E1E] border-[#E6CBA8] text-white shadow-xl'
-                      : 'bg-[#151515] border-[#2A2A2A] hover:border-[#E6CBA8] text-[#BDBDBD]'
-                  }`}
-                >
-                  <div className="text-[11px] font-bold leading-tight">Agent action</div>
-                  <div className="text-[9px] text-[#8A8A8A] mt-0.5">claude-3-5</div>
-                </div>
-
-                {/* Branch Labels */}
-                <span className="absolute left-[142px] top-[40px] text-[10px] font-mono text-[#E6CBA8] font-bold">
-                  true
-                </span>
-                <span className="absolute left-[142px] top-[95px] text-[10px] font-mono text-[#5C5C5C]">
-                  else
-                </span>
-
-                {/* Node 2: Condition */}
-                <div
-                  onClick={() => setActiveStep('condition')}
-                  className={`absolute left-[180px] top-1 w-28 p-2.5 rounded-xl border transition-all cursor-pointer font-mono text-left ${
-                    activeStep === 'condition'
-                      ? 'bg-[#1E1E1E] border-[#E6CBA8] text-white shadow-xl'
-                      : 'bg-[#151515] border-[#2A2A2A] hover:border-[#E6CBA8] text-[#BDBDBD]'
-                  }`}
-                >
-                  <div className="text-[11px] font-bold leading-tight">Risk &gt; 80</div>
-                  <div className="text-[9px] text-[#8A8A8A] mt-0.5">condition</div>
-                </div>
-
-                {/* Node 3: Lower Else branch */}
-                <div
-                  onClick={() => setActiveStep('audit')}
-                  className={`absolute left-[180px] top-[95px] w-28 p-2.5 rounded-xl border transition-all cursor-pointer font-mono text-left ${
-                    activeStep === 'audit'
-                      ? 'bg-[#1E1E1E] border-[#E6CBA8] text-white shadow-xl'
-                      : 'bg-[#151515] border-[#2A2A2A] hover:border-[#E6CBA8] text-[#BDBDBD]'
-                  }`}
-                >
-                  <div className="text-[11px] font-bold leading-tight">Log to ledger</div>
-                  <div className="text-[9px] text-[#8A8A8A] mt-0.5">sha256 seal</div>
-                </div>
-
-                {/* Node 4: Ask Vikas */}
-                <div
-                  onClick={() => setActiveStep('approval')}
-                  className={`absolute right-1 top-[46px] w-36 p-3 rounded-xl border transition-all cursor-pointer font-mono text-left ${
-                    activeStep === 'approval'
-                      ? 'bg-[#151515] border-[#E6CBA8] text-white shadow-[0_0_20px_rgba(230,203,168,0.2)]'
-                      : 'bg-[#151515] border-[#2A2A2A] hover:border-[#E6CBA8] text-[#BDBDBD]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-white">Ask Vikas</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#E6CBA8] animate-ping" />
-                  </div>
-                  <div className="text-[9px] text-[#8A8A8A] mt-0.5">waiting on sign-off</div>
-                  <div className="mt-2 text-[9px] font-mono text-[#E6CBA8] bg-[rgba(230,203,168,0.14)] px-2 py-0.5 rounded-full border border-[#B89B72] flex items-center gap-1 font-semibold">
-                    <Clock className="w-2.5 h-2.5" /> 26 min
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Window Bottom Bar */}
-            <div className="pt-3 border-t border-[#2A2A2A] text-[11px] font-mono space-y-1.5">
-              <div className="text-[#5C5C5C] text-[10px] uppercase tracking-wider mb-1">
-                last runs
-              </div>
-
-              <div className="flex items-center justify-between text-[#BDBDBD]">
-                <span className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#C0504D]"></span>
-                  <span className="text-[#8A8A8A]">11:14:02</span>
-                  <span className="text-white font-medium">blocked curl pipe to bash</span>
-                </span>
-                <span className="text-[#8A8A8A] text-[10px]">129 ms</span>
-              </div>
-
-              <div className="flex items-center justify-between text-[#BDBDBD]">
-                <span className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#E6CBA8]"></span>
-                  <span className="text-[#8A8A8A]">11:13:45</span>
-                  <span className="text-[#BDBDBD]">escalated AssumeRole SuperAdmin</span>
-                </span>
-                <span className="text-[#8A8A8A] text-[10px]">2.1 s</span>
-              </div>
+            <div className="pt-2 flex items-center justify-between text-[11px] font-mono text-[#C8C0AC]">
+              <span>Coverage: 4 Attack Classes</span>
+              <span className="text-[#34D399] flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Deterministic
+              </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* 5-Stage Strip */}
+      <div className="pt-4 border-t border-[#12234A]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {stages.map((stage, idx) => {
+            const Icon = stage.icon;
+            return (
+              <div
+                key={idx}
+                className="p-4 rounded-xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-[#FF6F59] font-bold">
+                    {stage.num}
+                  </span>
+                  <Icon className="w-4 h-4 text-[#C8C0AC]" />
+                </div>
+                <div className="text-xs font-mono font-bold text-[#F5EDDC]">
+                  {stage.title}
+                </div>
+                <div className="text-[11px] font-sans text-[#C8C0AC]/70 leading-snug">
+                  {stage.desc}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

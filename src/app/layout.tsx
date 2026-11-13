@@ -1,5 +1,20 @@
 import type { Metadata, Viewport } from 'next';
+import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
+
+const ibmPlexSans = IBM_Plex_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sans',
+  display: 'swap',
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-mono',
+  display: 'swap',
+});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://agentlock.dev';
 
@@ -87,14 +102,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark scroll-smooth" style={{ colorScheme: 'dark', backgroundColor: '#060D1F' }}>
+    <html
+      lang="en"
+      className={`dark scroll-smooth ${ibmPlexSans.variable} ${ibmPlexMono.variable}`}
+      style={{ colorScheme: 'dark', backgroundColor: '#060D1F' }}
+    >
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className="min-h-screen bg-transparent text-[#F5EDDC] antialiased selection:bg-[#FF6F59] selection:text-[#060D1F] overscroll-y-none">
+      <body className="min-h-screen bg-transparent font-sans text-[#F5EDDC] antialiased selection:bg-[#FF6F59] selection:text-[#060D1F] overscroll-y-none">
         {children}
       </body>
     </html>

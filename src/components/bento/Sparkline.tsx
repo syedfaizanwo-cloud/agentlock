@@ -12,7 +12,7 @@ interface SparklineProps {
 
 export const Sparkline: React.FC<SparklineProps> = ({
   data,
-  color = '#E6CBA8',
+  color = '#FF6F59',
   width = 90,
   height = 28,
   className = '',
@@ -35,6 +35,8 @@ export const Sparkline: React.FC<SparklineProps> = ({
   const pathD = `M ${points.join(' L ')}`;
   const areaD = `M ${padding},${height} L ${points.join(' L ')} L ${width - padding},${height} Z`;
 
+  const safeId = color.replace(/[^a-zA-Z0-9]/g, '');
+
   return (
     <svg
       width={width}
@@ -44,12 +46,12 @@ export const Sparkline: React.FC<SparklineProps> = ({
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id={`spark-grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={`spark-grad-${safeId}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.35" />
           <stop offset="100%" stopColor={color} stopOpacity="0.0" />
         </linearGradient>
       </defs>
-      <path d={areaD} fill={`url(#spark-grad-${color.replace('#', '')})`} />
+      <path d={areaD} fill={`url(#spark-grad-${safeId})`} />
       <path
         d={pathD}
         fill="none"

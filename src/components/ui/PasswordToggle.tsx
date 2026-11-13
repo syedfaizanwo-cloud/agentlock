@@ -24,15 +24,13 @@ export const PasswordToggle: React.FC<PasswordToggleProps> = ({
         e.stopPropagation();
         onToggle();
       }}
-      aria-label={
-        label || (isVisible ? 'Hide password' : 'Show password')
-      }
+      aria-label={label || (isVisible ? 'Hide secret key' : 'Show secret key')}
       aria-pressed={isVisible}
-      title={isVisible ? 'Hide password' : 'Show password'}
-      className={`p-1.5 rounded-lg text-[#8A8A8A] hover:text-[#FFFFFF] hover:bg-[#1E1E1E] transition-colors focus:outline-none focus:ring-1 focus:ring-[#E6CBA8] ${className}`}
+      title={isVisible ? 'Hide secret key' : 'Show secret key'}
+      className={`p-1.5 rounded-lg text-[#C8C0AC] hover:text-[#F5EDDC] hover:bg-[#12234A] transition-colors focus:outline-none focus:ring-1 focus:ring-[#FF6F59] ${className}`}
     >
       {isVisible ? (
-        <EyeOff className="w-4 h-4 shrink-0 text-[#E6CBA8]" />
+        <EyeOff className="w-4 h-4 shrink-0 text-[#FF6F59]" />
       ) : (
         <Eye className="w-4 h-4 shrink-0" />
       )}
@@ -40,9 +38,6 @@ export const PasswordToggle: React.FC<PasswordToggleProps> = ({
   );
 };
 
-/**
- * Custom hook for password input with auto-hide after 20 seconds or onBlur
- */
 export function usePasswordVisibility(autoHideMs: number = 20000) {
   const [isVisible, setIsVisible] = React.useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -68,7 +63,6 @@ export function usePasswordVisibility(autoHideMs: number = 20000) {
   };
 
   const onBlur = () => {
-    // Hide password on blur
     setIsVisible(false);
     clearTimer();
   };
