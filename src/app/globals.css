@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 :root {
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', Menlo, Monaco, Consolas, 'Courier New', monospace;
+
   /* Navy surfaces */
   --navy-950: #060D1F;
   --navy-900: #0A1633;

@@ -1,21 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google';
 import { WaveGridClientWrapper } from '../components/ui/WaveGridClientWrapper';
+import { AgentLockPreloader } from '../components/preloader/AgentLockPreloader';
+import { IntroTransition } from '../components/preloader/IntroTransition';
 import './globals.css';
-
-const ibmPlexSans = IBM_Plex_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-sans',
-  display: 'swap',
-});
-
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-mono',
-  display: 'swap',
-});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://agentlock.dev';
 
@@ -105,7 +92,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark scroll-smooth ${ibmPlexSans.variable} ${ibmPlexMono.variable}`}
+      className="dark scroll-smooth"
       style={{ colorScheme: 'dark', backgroundColor: '#060D1F' }}
     >
       <head>
@@ -118,12 +105,14 @@ export default function RootLayout({
         <a href="#main-content" className="skip-to-content">
           Skip to main content
         </a>
+        {/* Full-screen Opening Preloader Experience */}
+        <AgentLockPreloader />
         {/* Single persistent background canvas */}
         <WaveGridClientWrapper />
-        {/* Page content sits above background at z-10 */}
-        <div className="relative z-10">
+        {/* Page content sits above background at z-10 with smooth emergence transition */}
+        <IntroTransition>
           {children}
-        </div>
+        </IntroTransition>
       </body>
     </html>
   );
