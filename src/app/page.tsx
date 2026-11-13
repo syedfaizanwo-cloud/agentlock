@@ -6,12 +6,16 @@ import { RelayHero } from '../components/relay/RelayHero';
 import { StatCard } from '../components/dashboard/StatCard';
 import { Sparkline } from '../components/bento/Sparkline';
 import { RecentActivityFeed } from '../components/dashboard/RecentActivityFeed';
+import { AnalyticsSection } from '../components/analytics/AnalyticsSection';
 import { AgentManagementView } from '../components/agents/AgentManagementView';
-import { SiteFooter } from '../components/layout/SiteFooter';
+import { SecurityScanSection } from '../components/scan/SecurityScanSection';
+import { VulnerabilityResultsSection } from '../components/results/VulnerabilityResultsSection';
+import { ReportsSection } from '../components/reports/ReportsSection';
 import { FAQSection } from '../components/faq/FAQSection';
+import { SiteFooter } from '../components/layout/SiteFooter';
 import { MockBadge } from '../components/ui/MockBadge';
 import { api, isMockMode } from '../lib/api-client';
-import { Agent, Scan, DashboardStats, RegisterAgentPayload } from '../types/api';
+import { Agent, Scan, DashboardStats, RegisterAgentPayload, Finding } from '../types/api';
 import { Bot, Activity, ShieldAlert, AlertTriangle } from 'lucide-react';
 
 const SECTIONS = ['top', 'overview', 'analytics', 'agents', 'scan', 'results', 'reports', 'faq'];
@@ -25,14 +29,34 @@ export default function HomePage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [scans, setScans] = useState<Scan[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingAgents, setIsLoadingAgents] = useState(true);
+  const [isLoadingFindings, setIsLoadingFindings] = useState(false);
 
   // Selected agent for scanner prefill
   const [selectedAgentForScan, setSelectedAgentForScan] = useState<Agent | null>(null);
 
   // Active scan tracking
   const [activeScan, setActiveScan] = useState<Scan | null>(null);
+
+  // Handler to fetch findings for a specific scan and navigate to #results
+  const handleSelectScan = useCallback(async (scanId: string) => {
+    setIsLoadingFindings(true);
+    try {
+      const res = await api.getScanResults(scanId);
+      setFindings(res);
+      const resultsEl = document.getElementById('results');
+      if (resultsEl) {
+        resultsEl.scrollIntoView({ behavior: 'smooth' });
+        window.history.replaceState(null, '', '#results');
+      }
+    } catch (err) {
+      console.warn('Failed to load scan findings:', err);
+    } finally {
+      setIsLoadingFindings(false);
+    }
+  }, []);
 
   // Initial data loading & backend health check
   const refreshData = useCallback(async () => {
@@ -71,6 +95,19 @@ export default function HomePage() {
     try {
       const sc = await api.getScans();
       setScans(sc);
+
+      // If we have completed scans and no findings loaded yet, load the latest completed scan findings
+      if (sc.length > 0) {
+        const latestCompleted = sc.find((s) => s.status === 'completed') || sc[0];
+        if (latestCompleted) {
+          try {
+            const f = await api.getScanResults(latestCompleted.id);
+            setFindings((prev) => (prev.length === 0 ? f : prev));
+          } catch {
+            // Keep empty findings if unavailable
+          }
+        }
+      }
     } catch (err) {
       console.warn('Scans list unavailable:', err);
     }
@@ -117,6 +154,15 @@ export default function HomePage() {
       window.history.replaceState(null, '', '#scan');
     }
   };
+
+  const handleScanCompleted = useCallback(
+    async (completedScan: Scan) => {
+      setActiveScan(completedScan);
+      await refreshData();
+      await handleSelectScan(completedScan.id);
+    },
+    [refreshData, handleSelectScan]
+  );
 
   // Sparkline data generator from real scan history
   const getFindingTrend = (): number[] => {
@@ -230,10 +276,7 @@ export default function HomePage() {
             </h3>
             <RecentActivityFeed
               scans={scans}
-              onSelectScan={(id) => {
-                const resultsEl = document.getElementById('results');
-                if (resultsEl) resultsEl.scrollIntoView({ behavior: 'smooth' });
-              }}
+              onSelectScan={handleSelectScan}
               onViewAll={() => {
                 const reportsEl = document.getElementById('reports');
                 if (reportsEl) reportsEl.scrollIntoView({ behavior: 'smooth' });
@@ -259,9 +302,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] text-center text-xs font-mono text-[#C8C0AC]">
-            No scans yet. Start a scan to see severity data here.
-          </div>
+          <AnalyticsSection stats={stats} scans={scans} agents={agents} />
         </section>
 
         {/* Section 4: Agents #agents */}
@@ -306,9 +347,14 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] text-center text-xs font-mono text-[#C8C0AC]">
-            Ready to scan. Select target agent and test vectors to initiate.
-          </div>
+          <SecurityScanSection
+            agents={agents}
+            selectedAgent={selectedAgentForScan}
+            onSelectAgent={setSelectedAgentForScan}
+            onScanCompleted={handleScanCompleted}
+            activeScan={activeScan}
+            setActiveScan={setActiveScan}
+          />
         </section>
 
         {/* Section 6: Results #results */}
@@ -328,9 +374,10 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] text-center text-xs font-mono text-[#C8C0AC]">
-            No findings to display. Run an adversarial scan to generate findings.
-          </div>
+          <VulnerabilityResultsSection
+            findings={findings}
+            isLoading={isLoadingFindings}
+          />
         </section>
 
         {/* Section 7: Reports #reports */}
@@ -350,9 +397,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] text-center text-xs font-mono text-[#C8C0AC]">
-            No report generated yet. Complete a vulnerability scan to generate audit documents.
-          </div>
+          <ReportsSection
+            scans={scans}
+            onSelectScan={handleSelectScan}
+            onRefresh={refreshData}
+          />
         </section>
 
         {/* Section 8: FAQ #faq */}
