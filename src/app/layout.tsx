@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google';
+import { WaveGridClientWrapper } from '../components/ui/WaveGridClientWrapper';
 import './globals.css';
 
 const ibmPlexSans = IBM_Plex_Sans({
@@ -113,8 +114,16 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className="min-h-screen bg-transparent font-sans text-[#F5EDDC] antialiased selection:bg-[#FF6F59] selection:text-[#060D1F] overscroll-y-none">
-        {children}
+      <body className="min-h-screen bg-transparent font-sans text-[#F5EDDC] antialiased selection:bg-[#FF6F59] selection:text-[#060D1F] overscroll-y-none relative">
+        <a href="#main-content" className="skip-to-content">
+          Skip to main content
+        </a>
+        {/* Single persistent background canvas */}
+        <WaveGridClientWrapper />
+        {/* Page content sits above background at z-10 */}
+        <div className="relative z-10">
+          {children}
+        </div>
       </body>
     </html>
   );
