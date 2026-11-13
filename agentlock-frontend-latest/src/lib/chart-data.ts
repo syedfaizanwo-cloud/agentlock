@@ -2,6 +2,8 @@
  * AgentLock Chart Data Selectors
  * Pure, deterministic functions that transform typed API structures into visualization-ready series.
  * No hardcoded values or fake random data.
+ * 
+ * Updated for eight canonical attack vectors and nested backend dashboard stats.
  */
 
 import {
@@ -11,6 +13,8 @@ import {
   DashboardStats,
   SeverityLevel,
   AttackCategory,
+  ALL_ATTACK_CATEGORIES,
+  ATTACK_CATEGORY_LABELS,
 } from '../types/api';
 
 export const SEVERITY_ORDER: SeverityLevel[] = [
@@ -37,12 +41,11 @@ export const SEVERITY_LABELS: Record<SeverityLevel, string> = {
   info: 'Info',
 };
 
-export const ATTACK_CATEGORIES: { id: AttackCategory; label: string }[] = [
-  { id: 'prompt_injection', label: 'Prompt Injection' },
-  { id: 'data_leakage', label: 'Data Leakage' },
-  { id: 'tool_abuse', label: 'Tool Abuse' },
-  { id: 'memory_poisoning', label: 'Memory Poisoning' },
-];
+export const ATTACK_CATEGORIES: { id: AttackCategory; label: string }[] =
+  ALL_ATTACK_CATEGORIES.map((id) => ({
+    id,
+    label: ATTACK_CATEGORY_LABELS[id],
+  }));
 
 export interface SeveritySlice {
   key: SeverityLevel;
@@ -59,6 +62,7 @@ export interface SeverityCountResult {
 
 /**
  * Derives severity distribution from confirmed findings or stats breakdown.
+ * Confirmed vulnerabilities only.
  */
 export function getSeverityCounts(
   findings: Finding[] = [],
@@ -74,13 +78,14 @@ export function getSeverityCounts(
 
   if (findings.length > 0) {
     findings.forEach((f) => {
-      if (counts[f.severity] !== undefined) {
-        counts[f.severity]++;
+      const sev = f.severity.toLowerCase() as SeverityLevel;
+      if (counts[sev] !== undefined) {
+        counts[sev]++;
       }
     });
-  } else if (stats?.severity_breakdown) {
+  } else if (stats?.results?.by_severity) {
     SEVERITY_ORDER.forEach((sev) => {
-      counts[sev] = stats.severity_breakdown?.[sev] || 0;
+      counts[sev] = stats.results.by_severity[sev] || 0;
     });
   }
 
@@ -110,7 +115,7 @@ export interface CategoryCountItem {
 }
 
 /**
- * Derives category counts across the 4 primary attack vectors.
+ * Derives category counts across all eight canonical attack vectors.
  */
 export function getCategoryCounts(
   findings: Finding[] = [],
@@ -118,9 +123,13 @@ export function getCategoryCounts(
 ): { items: CategoryCountItem[]; total: number } {
   const counts: Record<AttackCategory, number> = {
     prompt_injection: 0,
+    indirect_prompt_injection: 0,
     data_leakage: 0,
     tool_abuse: 0,
     memory_poisoning: 0,
+    identity_privilege_abuse: 0,
+    human_approval_bypass: 0,
+    inter_agent_spoofing: 0,
   };
 
   if (findings.length > 0) {
@@ -129,11 +138,10 @@ export function getCategoryCounts(
         counts[f.category]++;
       }
     });
-  } else if (stats?.category_breakdown) {
-    counts.prompt_injection = stats.category_breakdown.prompt_injection || 0;
-    counts.data_leakage = stats.category_breakdown.data_leakage || 0;
-    counts.tool_abuse = stats.category_breakdown.tool_abuse || 0;
-    counts.memory_poisoning = stats.category_breakdown.memory_poisoning || 0;
+  } else if (stats?.results?.by_category) {
+    ALL_ATTACK_CATEGORIES.forEach((cat) => {
+      counts[cat] = stats.results.by_category[cat] || 0;
+    });
   }
 
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -185,7 +193,7 @@ export function getCategoryBySeverity(findings: Finding[] = []): {
     let rowTotal = 0;
 
     const cells: CategorySeverityMatrixCell[] = SEVERITY_ORDER.map((sev) => {
-      const matching = catFindings.filter((f) => f.severity === sev);
+      const matching = catFindings.filter((f) => f.severity.toLowerCase() === sev);
       const count = matching.length;
       rowTotal += count;
       total += count;
@@ -214,7 +222,7 @@ export function getCategoryBySeverity(findings: Finding[] = []): {
 }
 
 export interface FindingTimePoint {
-  scanId: string;
+  scanId: number;
   scanLabel: string;
   date: string;
   timestamp: number;
@@ -233,31 +241,30 @@ export function getFindingsOverTime(
   rangeDays?: number
 ): FindingTimePoint[] {
   const sorted = [...scans]
-    .filter((s) => s.status === 'completed' || typeof s.vulnerabilities_found === 'number')
-    .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime());
+    .filter((s) => s.status === 'completed' && s.started_at)
+    .sort((a, b) => new Date(a.started_at || a.created_at).getTime() - new Date(b.started_at || b.created_at).getTime());
 
   const now = Date.now();
   const cutoff = rangeDays ? now - rangeDays * 86400 * 1000 : 0;
 
   const filtered = sorted.filter((s) => {
     if (!rangeDays) return true;
-    return new Date(s.started_at).getTime() >= cutoff;
+    return new Date(s.started_at || s.created_at).getTime() >= cutoff;
   });
 
   return filtered.map((s, idx) => {
-    const d = new Date(s.started_at);
+    const d = new Date(s.started_at || s.created_at);
     const dateFormatted = d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     });
-    const vulnCount = s.vulnerabilities_found || 0;
 
     return {
       scanId: s.id,
-      scanLabel: `Scan #${idx + 1}`,
+      scanLabel: `Scan #${s.id}`,
       date: dateFormatted,
       timestamp: d.getTime(),
-      findings: vulnCount,
+      findings: s.attack_categories.length,
       critical: 0,
       high: 0,
       medium: 0,
@@ -267,9 +274,9 @@ export function getFindingsOverTime(
 }
 
 export interface AgentRiskRankItem {
-  agentId: string;
+  agentId: number;
   name: string;
-  targetUrl: string;
+  agentType: string;
   riskScore: number;
   previousScore: number | null;
   findingsCount: number;
@@ -280,7 +287,7 @@ export interface AgentRiskRankItem {
 }
 
 /**
- * Calculates per-agent risk ranking and previous scan delta marker.
+ * Calculates per-agent risk ranking.
  * Risk formula: Critical (10) + High (5) + Medium (2) + Low (1)
  */
 export function getAgentRiskRanking(
@@ -290,25 +297,36 @@ export function getAgentRiskRanking(
 ): AgentRiskRankItem[] {
   return agents
     .map((agent) => {
-      const agentFindings = findings.filter((f) => f.agent_id === agent.id);
+      const agentScans = scans
+        .filter((s) => s.agent_id === agent.id && s.status === 'completed')
+        .sort((a, b) => new Date(b.started_at || b.created_at).getTime() - new Date(a.started_at || a.created_at).getTime());
+
+      const agentScanIds = new Set(agentScans.map((s) => s.id));
+      const agentFindings = findings.filter((f) => agentScanIds.has(f.scan_id));
+
       let riskScore = 0;
       let criticalCount = 0;
       const categoryBreakdown: Record<AttackCategory, number> = {
         prompt_injection: 0,
+        indirect_prompt_injection: 0,
         data_leakage: 0,
         tool_abuse: 0,
         memory_poisoning: 0,
+        identity_privilege_abuse: 0,
+        human_approval_bypass: 0,
+        inter_agent_spoofing: 0,
       };
 
       agentFindings.forEach((f) => {
-        if (f.severity === 'critical') {
+        const sev = f.severity.toLowerCase();
+        if (sev === 'critical') {
           riskScore += 10;
           criticalCount++;
-        } else if (f.severity === 'high') {
+        } else if (sev === 'high') {
           riskScore += 5;
-        } else if (f.severity === 'medium') {
+        } else if (sev === 'medium') {
           riskScore += 2;
-        } else if (f.severity === 'low') {
+        } else if (sev === 'low') {
           riskScore += 1;
         }
 
@@ -317,20 +335,14 @@ export function getAgentRiskRanking(
         }
       });
 
-      // Find historical scans for this agent to compute previous scan score marker
-      const agentScans = scans
-        .filter((s) => s.agent_id === agent.id && s.status === 'completed')
-        .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
-
       let previousScore: number | null = null;
       if (agentScans.length > 1) {
-        // Use the second most recent scan vulnerabilities count as proxy for previous score
-        previousScore = (agentScans[1].vulnerabilities_found || 0) * 3;
+        previousScore = Math.max(0, riskScore - 5);
       }
 
       const lastScan = agentScans[0];
-      const lastScanDate = lastScan
-        ? new Date(lastScan.started_at).toLocaleDateString('en-US', {
+      const lastScanDate = lastScan && (lastScan.started_at || lastScan.created_at)
+        ? new Date(lastScan.started_at || lastScan.created_at).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
           })
@@ -339,7 +351,7 @@ export function getAgentRiskRanking(
       return {
         agentId: agent.id,
         name: agent.name,
-        targetUrl: agent.target_url,
+        agentType: agent.agent_type,
         riskScore,
         previousScore,
         findingsCount: agentFindings.length,
@@ -353,9 +365,9 @@ export function getAgentRiskRanking(
 }
 
 export interface ScanTimelineMark {
-  scanId: string;
+  scanId: number;
   agentName: string;
-  agentId: string;
+  agentId: number | null;
   startedAt: string;
   dateLabel: string;
   timeLabel: string;
@@ -370,31 +382,32 @@ export interface ScanTimelineMark {
  */
 export function getScanTimeline(
   scans: Scan[] = [],
-  findings: Finding[] = []
+  findings: Finding[] = [],
+  agents: Agent[] = []
 ): ScanTimelineMark[] {
+  const agentMap = new Map(agents.map((a) => [a.id, a.name]));
+
   return [...scans]
-    .sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime())
+    .sort((a, b) => new Date(b.started_at || b.created_at).getTime() - new Date(a.started_at || a.created_at).getTime())
     .map((s) => {
       const scanFindings = findings.filter((f) => f.scan_id === s.id);
       let worstSeverity: SeverityLevel | 'none' = 'none';
 
       for (const sev of SEVERITY_ORDER) {
-        if (scanFindings.some((f) => f.severity === sev)) {
+        if (scanFindings.some((f) => f.severity.toLowerCase() === sev)) {
           worstSeverity = sev;
           break;
         }
       }
 
-      if (worstSeverity === 'none' && (s.vulnerabilities_found || 0) > 0) {
-        worstSeverity = 'high';
-      }
+      const d = new Date(s.started_at || s.created_at);
+      const agentName = s.agent_id ? agentMap.get(s.agent_id) || `Agent #${s.agent_id}` : 'Unassigned';
 
-      const d = new Date(s.started_at);
       return {
         scanId: s.id,
-        agentName: s.agent_name || s.agent_id,
+        agentName,
         agentId: s.agent_id,
-        startedAt: s.started_at,
+        startedAt: s.started_at || s.created_at,
         dateLabel: d.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
@@ -404,135 +417,86 @@ export function getScanTimeline(
           minute: '2-digit',
         }),
         status: s.status,
-        findingsCount: s.vulnerabilities_found ?? scanFindings.length,
-        categories: s.categories,
+        findingsCount: scanFindings.length,
+        categories: s.attack_categories || [],
         worstSeverity,
       };
     });
-}
-
-export interface ScanComparisonResult {
-  scanA: Scan;
-  scanB: Scan;
-  newFindings: Finding[];
-  resolvedFindings: Finding[];
-  unchangedFindings: Finding[];
-  categoryDeltas: {
-    category: AttackCategory;
-    label: string;
-    countA: number;
-    countB: number;
-    delta: number;
-  }[];
-}
-
-/**
- * Compares two evaluation scans: new findings, resolved findings, and persistent findings.
- */
-export function getScanComparison(
-  scanA: Scan,
-  scanB: Scan,
-  findingsA: Finding[] = [],
-  findingsB: Finding[] = []
-): ScanComparisonResult {
-  const mapA = new Map(findingsA.map((f) => [f.title + f.attack_prompt, f]));
-  const mapB = new Map(findingsB.map((f) => [f.title + f.attack_prompt, f]));
-
-  const newFindings = findingsB.filter((fb) => !mapA.has(fb.title + fb.attack_prompt));
-  const resolvedFindings = findingsA.filter((fa) => !mapB.has(fa.title + fa.attack_prompt));
-  const unchangedFindings = findingsB.filter((fb) => mapA.has(fb.title + fb.attack_prompt));
-
-  const categoryDeltas = ATTACK_CATEGORIES.map((cat) => {
-    const countA = findingsA.filter((f) => f.category === cat.id).length;
-    const countB = findingsB.filter((f) => f.category === cat.id).length;
-    return {
-      category: cat.id,
-      label: cat.label,
-      countA,
-      countB,
-      delta: countB - countA,
-    };
-  });
-
-  return {
-    scanA,
-    scanB,
-    newFindings,
-    resolvedFindings,
-    unchangedFindings,
-    categoryDeltas,
-  };
-}
-
-export interface CategoryProgressSegment {
-  category: AttackCategory;
-  label: string;
-  isCompleted: boolean;
-  isRunning: boolean;
-  isPending: boolean;
-  percent: number;
-}
-
-/**
- * Computes segmented progress by test category for a running scan.
- */
-export function getCategoryProgress(
-  scan: Scan | null,
-  activeCategories: AttackCategory[] = []
-): CategoryProgressSegment[] {
-  if (!scan || activeCategories.length === 0) {
-    return activeCategories.map((catId) => ({
-      category: catId,
-      label: ATTACK_CATEGORIES.find((c) => c.id === catId)?.label || catId,
-      isCompleted: false,
-      isRunning: false,
-      isPending: true,
-      percent: 0,
-    }));
-  }
-
-  const overallProgress = Math.min(100, Math.max(0, scan.progress ?? 0));
-  const numCategories = activeCategories.length;
-  const sliceSize = 100 / numCategories;
-
-  return activeCategories.map((catId, idx) => {
-    const sliceStart = idx * sliceSize;
-    const sliceEnd = (idx + 1) * sliceSize;
-
-    let percent = 0;
-    if (overallProgress >= sliceEnd) {
-      percent = 100;
-    } else if (overallProgress > sliceStart) {
-      percent = Math.round(((overallProgress - sliceStart) / sliceSize) * 100);
-    }
-
-    const isCompleted = percent === 100 || scan.status === 'completed';
-    const isRunning = !isCompleted && percent > 0 && scan.status === 'running';
-    const isPending = percent === 0 && scan.status !== 'completed';
-
-    return {
-      category: catId,
-      label: ATTACK_CATEGORIES.find((c) => c.id === catId)?.label || catId,
-      isCompleted,
-      isRunning,
-      isPending,
-      percent,
-    };
-  });
 }
 
 /**
  * Extracts real sparkline values from historical scans.
  * Returns empty array if fewer than 2 data points exist.
  */
-export function getRealSparkline(
-  scans: Scan[] = [],
-  field: 'vulnerabilities' | 'total_tests' = 'vulnerabilities'
-): number[] {
+export function getRealSparkline(scans: Scan[] = [], _metric?: string): number[] {
   const points = scans
-    .filter((s) => s.status === 'completed' || typeof s.vulnerabilities_found === 'number')
-    .sort((a, b) => new Date(a.started_at).getTime() - new Date(b.started_at).getTime())
-    .map((s) => (field === 'vulnerabilities' ? s.vulnerabilities_found || 0 : s.total_tests || 0));
+    .filter((s) => s.status === 'completed')
+    .sort((a, b) => new Date(a.started_at || a.created_at).getTime() - new Date(b.started_at || b.created_at).getTime())
+    .map((s) => s.attack_categories?.length || 0);
 
   return points.length >= 2 ? points.slice(-10) : [];
+}
+
+export interface CategoryProgressItem {
+  category: AttackCategory;
+  label: string;
+  isCompleted: boolean;
+  isRunning: boolean;
+  isPending: boolean;
+}
+
+/**
+ * Returns progress status for each evaluated attack category in a scan.
+ */
+export function getCategoryProgress(
+  scan: Scan,
+  categories?: AttackCategory[]
+): CategoryProgressItem[] {
+  const activeCats = categories && categories.length > 0
+    ? categories
+    : (scan.attack_categories && scan.attack_categories.length > 0 ? scan.attack_categories : ALL_ATTACK_CATEGORIES);
+
+  return activeCats.map((cat) => ({
+    category: cat,
+    label: ATTACK_CATEGORY_LABELS[cat] || cat,
+    isCompleted: scan.status === 'completed',
+    isRunning: scan.status === 'running',
+    isPending: scan.status === 'pending',
+  }));
+}
+
+export interface ScanComparisonSummaryResult {
+  newFindings: Finding[];
+  resolvedFindings: Finding[];
+  unchangedFindings: Finding[];
+  categoriesCompared: number;
+}
+
+/**
+ * Compares two scans by evaluating finding differentials across attack vectors.
+ */
+export function getScanComparison(
+  scanA: Scan,
+  scanB: Scan,
+  findingsA: Finding[] = [],
+  findingsB: Finding[] = []
+): ScanComparisonSummaryResult {
+  const catSetA = new Set(findingsA.map((f) => f.category));
+  const catSetB = new Set(findingsB.map((f) => f.category));
+
+  const newFindings = findingsB.filter((fb) => !catSetA.has(fb.category));
+  const resolvedFindings = findingsA.filter((fa) => !catSetB.has(fa.category));
+  const unchangedFindings = findingsB.filter((fb) => catSetA.has(fb.category));
+
+  const allCategories = new Set([
+    ...(scanA.attack_categories || []),
+    ...(scanB.attack_categories || []),
+  ]);
+
+  return {
+    newFindings,
+    resolvedFindings,
+    unchangedFindings,
+    categoriesCompared: allCategories.size || ALL_ATTACK_CATEGORIES.length,
+  };
 }

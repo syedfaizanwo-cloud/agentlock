@@ -15,8 +15,8 @@ import {
 
 interface ActionMonitorTableProps {
   scans: Scan[];
-  onSelectScan?: (scanId: string) => void;
-  onDownloadReport?: (scanId: string) => void;
+  onSelectScan?: (scanId: number) => void;
+  onDownloadReport?: (scanId: number) => void;
   onRefresh?: () => void;
   isLoading?: boolean;
 }
@@ -33,9 +33,8 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
 
   const filteredScans = scans.filter((scan) => {
     const matchesSearch =
-      (scan.agent_name && scan.agent_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      scan.agent_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      scan.id.toLowerCase().includes(searchTerm.toLowerCase());
+      (scan.agent_id !== null && String(scan.agent_id).includes(searchTerm)) ||
+      String(scan.id).includes(searchTerm);
 
     const matchesStatus = statusFilter === 'ALL' || scan.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -136,25 +135,21 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
               {filteredScans.map((scan) => (
                 <tr key={scan.id} className="hover:bg-navy-850/50 transition-colors">
                   <td className="py-3 px-4 font-sans font-medium text-cream">
-                    {scan.agent_name || scan.agent_id}
+                    {scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`}
                   </td>
                   <td className="py-3 px-4 font-mono text-cream-muted">
-                    {scan.id}
+                    #{scan.id}
                   </td>
                   <td className="py-3 px-4">
                     {getStatusBadge(scan.status)}
                   </td>
                   <td className="py-3 px-4">
-                    {typeof scan.vulnerabilities_found === 'number' ? (
-                      <span className="font-bold text-coral">
-                        {scan.vulnerabilities_found}
-                      </span>
-                    ) : (
-                      <span className="text-cream-muted">-</span>
-                    )}
+                    <span className="font-bold text-coral">
+                      {scan.attack_categories?.length || 0} vectors
+                    </span>
                   </td>
                   <td className="py-3 px-4 text-cream-muted">
-                    {new Date(scan.started_at).toLocaleDateString()}
+                    {new Date(scan.started_at || scan.created_at).toLocaleDateString()}
                   </td>
                   <td className="py-3 px-4 text-right space-x-2">
                     {onSelectScan && (

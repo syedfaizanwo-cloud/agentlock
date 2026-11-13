@@ -3,13 +3,28 @@ import {
   RegisterAgentPayload,
   Scan,
   CreateScanPayload,
-  Finding,
+  AttackResult,
   DashboardStats,
+  AgentComparisonResponse,
+  Report,
+  Finding,
+  adaptAttackResultToFinding,
   User,
   LoginPayload,
-  AuthResponse,
 } from '../types/api';
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public detail?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+// Retain AuthError for backwards compatibility with any remaining auth views
 export class AuthError extends Error {
   constructor(
     message: string,
@@ -22,10 +37,6 @@ export class AuthError extends Error {
   }
 }
 
-/**
- * Isolated Mock Mode toggle.
- * Strictly disabled in production builds to prevent shipping test mocks.
- */
 export const isMockMode =
   process.env.NODE_ENV !== 'production' &&
   process.env.NEXT_PUBLIC_USE_MOCKS === 'true';
@@ -36,7 +47,7 @@ interface CacheEntry<T> {
 }
 
 const memoryCache = new Map<string, CacheEntry<unknown>>();
-const CACHE_TTL_MS = 15000; // 15 seconds stale-while-revalidate TTL
+const CACHE_TTL_MS = 10000; // 10 seconds TTL
 
 function getCached<T>(key: string): T | null {
   const entry = memoryCache.get(key);
@@ -65,22 +76,22 @@ export function invalidateApiCache(prefix?: string): void {
 }
 
 /**
- * Lightweight native fetch wrapper replacing axios.
- * Saves bundle weight, supports abort timeout, and proxies via /api.
+ * Centralized fetch wrapper proxying requests via Next.js /api rewrite.
+ * Preserves status codes, parses FastAPI error details, and supports timeouts.
  */
 async function request<T>(
   endpoint: string,
   options: RequestInit & { timeoutMs?: number } = {}
 ): Promise<T> {
-  const { timeoutMs = 12000, ...customConfig } = options;
+  const { timeoutMs = 25000, ...customConfig } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const url = endpoint.startsWith('/') ? `/api${endpoint}` : `/api/${endpoint}`;
+  const cleanPath = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  const url = `/api/${cleanPath}`;
 
   try {
     const response = await fetch(url, {
-      credentials: 'include',
       ...customConfig,
       signal: controller.signal,
       headers: {
@@ -93,20 +104,61 @@ async function request<T>(
     clearTimeout(timer);
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      throw new Error(
-        `API error ${response.status} (${response.statusText}): ${errorText.slice(0, 160)}`
+      let detail = '';
+      try {
+        const errorJson = await response.json();
+        detail = errorJson.detail || JSON.stringify(errorJson);
+      } catch {
+        detail = await response.text().catch(() => '');
+      }
+      throw new ApiError(
+        detail || `API request failed with status ${response.status}`,
+        response.status,
+        detail
       );
     }
 
-    return (await response.json()) as T;
-  } catch (error: unknown) {
+    // Handle empty 204 or empty response
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    return await response.json();
+  } catch (err: unknown) {
     clearTimeout(timer);
-    throw error;
+    if (err instanceof ApiError) {
+      throw err;
+    }
+    if ((err as any)?.name === 'AbortError') {
+      throw new ApiError('Request timed out while contacting backend server', 408);
+    }
+    throw new ApiError(
+      (err as Error)?.message || 'Network error occurred while contacting backend',
+      500
+    );
   }
 }
 
 export const api = {
+  // System Health
+  async checkConnection(): Promise<{ ok: boolean; latencyMs: number; service?: string; version?: string }> {
+    const start = performance.now();
+    try {
+      const data = await request<{ status: string; service?: string; version?: string }>('/health', {
+        timeoutMs: 4000,
+      });
+      const latencyMs = Math.round(performance.now() - start);
+      return {
+        ok: data?.status === 'ok',
+        latencyMs,
+        service: data?.service,
+        version: data?.version,
+      };
+    } catch {
+      return { ok: false, latencyMs: 0 };
+    }
+  },
+
   // Agents
   async getAgents(): Promise<Agent[]> {
     if (isMockMode) {
@@ -116,26 +168,34 @@ export const api = {
     const cached = getCached<Agent[]>('agents');
     if (cached) return cached;
 
-    try {
-      const data = await request<Agent[]>('/agents');
-      const list = Array.isArray(data) ? data : [];
-      setCache('agents', list);
-      return list;
-    } catch {
-      return [];
+    const data = await request<Agent[]>('/agents');
+    setCache('agents', data);
+    return data;
+  },
+
+  async getAgent(agentId: number): Promise<Agent> {
+    if (isMockMode) {
+      const { MOCK_AGENTS } = await import('../mocks');
+      const found = MOCK_AGENTS.find((a) => a.id === agentId);
+      if (found) return found;
+      throw new ApiError(`Agent ${agentId} not found`, 404);
     }
+    return await request<Agent>(`/agents/${agentId}`);
   },
 
   async registerAgent(payload: RegisterAgentPayload): Promise<Agent> {
     if (isMockMode) {
+      const { MOCK_AGENTS } = await import('../mocks');
       const newAgent: Agent = {
-        id: `agent-${Date.now()}`,
+        id: Date.now(),
         name: payload.name,
-        target_url: payload.target_url,
-        description: payload.description,
+        description: payload.description || null,
+        agent_type: payload.agent_type,
         status: 'active',
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
+      MOCK_AGENTS.push(newAgent);
       return newAgent;
     }
 
@@ -149,7 +209,15 @@ export const api = {
     return res;
   },
 
-  // Scans
+  async deleteAgent(agentId: number): Promise<void> {
+    await request<void>(`/agents/${agentId}`, {
+      method: 'DELETE',
+    });
+    invalidateApiCache('agents');
+    invalidateApiCache('stats');
+  },
+
+  // Scans (Synchronous Execution)
   async getScans(): Promise<Scan[]> {
     if (isMockMode) {
       const { MOCK_SCANS } = await import('../mocks');
@@ -158,81 +226,69 @@ export const api = {
     const cached = getCached<Scan[]>('scans');
     if (cached) return cached;
 
-    try {
-      const data = await request<Scan[]>('/scans');
-      const list = Array.isArray(data) ? data : [];
-      setCache('scans', list);
-      return list;
-    } catch {
-      return [];
-    }
+    const data = await request<Scan[]>('/scans');
+    setCache('scans', data);
+    return data;
   },
 
-  async startScan(payload: CreateScanPayload): Promise<Scan> {
-    if (isMockMode) {
-      const newScan: Scan = {
-        id: `scan-${Date.now().toString().slice(-6)}`,
-        agent_id: payload.agent_id,
-        status: 'running',
-        categories: payload.categories,
-        progress: 10,
-        status_message: 'Initializing controlled sandbox test vectors.',
-        started_at: new Date().toISOString(),
-      };
-      return newScan;
-    }
-
-    const res = await request<Scan>('/scans', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-
-    invalidateApiCache('scans');
-    invalidateApiCache('stats');
-    return res;
-  },
-
-  async getScan(scanId: string): Promise<Scan> {
+  async getScan(scanId: number): Promise<Scan> {
     if (isMockMode) {
       const { MOCK_SCANS } = await import('../mocks');
       const found = MOCK_SCANS.find((s) => s.id === scanId);
       if (found) return found;
-      return {
-        id: scanId,
-        agent_id: 'agent-001',
-        status: 'completed',
-        categories: ['prompt_injection', 'data_leakage'],
-        progress: 100,
-        status_message: 'Scan complete.',
-        started_at: new Date().toISOString(),
-        completed_at: new Date().toISOString(),
-        vulnerabilities_found: 2,
-      };
+      throw new ApiError(`Scan ${scanId} not found`, 404);
     }
-
-    return await request<Scan>(`/scans/${encodeURIComponent(scanId)}`);
+    return await request<Scan>(`/scans/${scanId}`);
   },
 
-  async getScanResults(scanId: string): Promise<Finding[]> {
+  async startScan(payload: CreateScanPayload): Promise<Scan> {
     if (isMockMode) {
-      const { MOCK_FINDINGS } = await import('../mocks');
-      return MOCK_FINDINGS.filter((f) => f.scan_id === scanId || true);
+      const { MOCK_SCANS } = await import('../mocks');
+      const newScan: Scan = {
+        id: Date.now(),
+        agent_id: payload.agent_id,
+        status: 'completed',
+        attack_categories: payload.attack_categories,
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      };
+      MOCK_SCANS.unshift(newScan);
+      return newScan;
     }
 
-    const cacheKey = `findings-${scanId}`;
-    const cached = getCached<Finding[]>(cacheKey);
+    // Backend executes synchronously and returns completed scan
+    const res = await request<Scan>('/scans', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      timeoutMs: 60000, // Allow up to 60s for 8-attack test execution
+    });
+
+    invalidateApiCache('scans');
+    invalidateApiCache('stats');
+    invalidateApiCache('comparison');
+    return res;
+  },
+
+  async getScanResults(scanId: number): Promise<AttackResult[]> {
+    if (isMockMode) {
+      const { MOCK_RESULTS } = await import('../mocks');
+      return MOCK_RESULTS.filter((r) => r.scan_id === scanId);
+    }
+
+    const cacheKey = `results-${scanId}`;
+    const cached = getCached<AttackResult[]>(cacheKey);
     if (cached) return cached;
 
-    try {
-      const data = await request<Finding[]>(
-        `/scans/${encodeURIComponent(scanId)}/results`
-      );
-      const list = Array.isArray(data) ? data : [];
-      setCache(cacheKey, list);
-      return list;
-    } catch {
-      return [];
-    }
+    const data = await request<AttackResult[]>(`/scans/${scanId}/results`);
+    setCache(cacheKey, data);
+    return data;
+  },
+
+  // Helper to get adapted findings for UI components
+  async getScanFindings(scanId: number): Promise<Finding[]> {
+    const results = await this.getScanResults(scanId);
+    return results.map(adaptAttackResultToFinding);
   },
 
   // Dashboard Stats
@@ -245,164 +301,83 @@ export const api = {
     const cached = getCached<DashboardStats>('stats');
     if (cached) return cached;
 
-    try {
-      const data = await request<DashboardStats>('/dashboard/stats');
-      setCache('stats', data);
-      return data;
-    } catch {
-      return {
-        total_scans: 0,
-        registered_agents: 0,
-        confirmed_vulnerabilities: 0,
-        critical_findings: 0,
-        severity_breakdown: { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
-        category_breakdown: {
-          prompt_injection: 0,
-          data_leakage: 0,
-          tool_abuse: 0,
-          memory_poisoning: 0,
-        },
-      };
-    }
+    const data = await request<DashboardStats>('/dashboard/stats');
+    setCache('stats', data);
+    return data;
   },
 
-  // PDF Download
-  async downloadReportPdf(reportId: string): Promise<Blob> {
-    if (isMockMode) {
-      const dummyPdfContent = `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000052 00000 n\n0000000101 00000 n\ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF`;
-      return new Blob([dummyPdfContent], { type: 'application/pdf' });
+  // Two-Agent Comparison
+  async getAgentComparison(params?: {
+    vulnerable_scan_id?: number;
+    protected_scan_id?: number;
+  }): Promise<AgentComparisonResponse> {
+    const query = new URLSearchParams();
+    if (params?.vulnerable_scan_id) {
+      query.set('vulnerable_scan_id', params.vulnerable_scan_id.toString());
     }
+    if (params?.protected_scan_id) {
+      query.set('protected_scan_id', params.protected_scan_id.toString());
+    }
+    const qStr = query.toString();
+    const endpoint = qStr ? `/dashboard/comparison?${qStr}` : '/dashboard/comparison';
+    return await request<AgentComparisonResponse>(endpoint);
+  },
 
-    const res = await fetch(`/api/reports/${encodeURIComponent(reportId)}/pdf`, {
-      headers: {
-        Accept: 'application/pdf',
-      },
+  // Reports
+  async generateReport(scanId: number): Promise<Report> {
+    const res = await request<Report>(`/scans/${scanId}/report`, {
+      method: 'POST',
     });
-
-    if (!res.ok) {
-      throw new Error(`Failed to download report PDF: status ${res.status}`);
-    }
-
-    return await res.blob();
+    return res;
   },
 
-  // Health / Connection Check
-  async checkConnection(): Promise<{ ok: boolean; latencyMs: number }> {
-    if (isMockMode) {
-      return { ok: true, latencyMs: 12 };
-    }
-
-    const start = performance.now();
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 3500);
-      const res = await fetch('/api/dashboard/stats', {
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      const latencyMs = Math.round(performance.now() - start);
-      return { ok: res.ok, latencyMs };
-    } catch {
-      return { ok: false, latencyMs: 0 };
-    }
-  },
-
-  // Authentication
-  async login(payload: LoginPayload): Promise<AuthResponse> {
+  async downloadReportPdf(reportId: number): Promise<Blob> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
+    const timer = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        credentials: 'include',
+      const response = await fetch(`/api/reports/${reportId}/pdf`, {
         signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(payload),
       });
-
       clearTimeout(timer);
 
-      if (response.status === 200) {
-        const data = await response.json();
-        return data as AuthResponse;
+      if (!response.ok) {
+        throw new ApiError(`Failed to download report PDF (status ${response.status})`, response.status);
       }
 
-      if (response.status === 401) {
-        throw new AuthError('Invalid email or password.', 401);
-      }
-
-      if (response.status === 429) {
-        const retryHeader = response.headers.get('Retry-After');
-        let retrySeconds = 60;
-        if (retryHeader) {
-          const parsed = parseInt(retryHeader, 10);
-          if (!isNaN(parsed) && parsed > 0) {
-            retrySeconds = parsed;
-          }
-        }
-        throw new AuthError(
-          `Too many attempts. Please try again in ${retrySeconds} seconds.`,
-          429,
-          retrySeconds
-        );
-      }
-
-      if (response.status >= 500) {
-        throw new AuthError(
-          'Authentication service is currently unavailable. Please try again shortly.',
-          response.status
-        );
-      }
-
-      const errText = await response.text().catch(() => '');
-      throw new AuthError(
-        errText ? `Login failed: ${errText.slice(0, 100)}` : 'Invalid email or password.',
-        response.status
-      );
+      return await response.blob();
     } catch (err: unknown) {
       clearTimeout(timer);
-      if (err instanceof AuthError) {
-        throw err;
-      }
-      throw new AuthError(
-        'Unable to connect to authentication service. Check your connection and try again.',
-        0
-      );
+      if (err instanceof ApiError) throw err;
+      throw new ApiError((err as Error)?.message || 'Failed to download report PDF', 500);
     }
+  },
+
+  // Auth Stubs (Public demo access: no auth barriers, typed contracts preserved)
+  async login(payload: { email: string; password?: string; remember?: boolean }): Promise<{ user: User; token?: string }> {
+    return {
+      user: {
+        id: 'demo-user-1',
+        email: payload.email,
+        name: payload.email.split('@')[0] || 'Security Evaluator',
+        role: 'operator',
+      },
+      token: 'demo-session-token',
+    };
   },
 
   async logout(): Promise<void> {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { Accept: 'application/json' },
-      });
-    } catch {
-      // Graceful logout even if backend is offline
-    }
+    // No-op for public demo
+    return Promise.resolve();
   },
 
   async getCurrentUser(): Promise<User | null> {
-    try {
-      const response = await fetch('/api/auth/me', {
-        method: 'GET',
-        credentials: 'include',
-        headers: { Accept: 'application/json' },
-      });
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-      return (data?.user || data) as User;
-    } catch {
-      return null;
-    }
+    // Public demo operator
+    return {
+      id: 'demo-user-1',
+      email: 'evaluator@agentlock.dev',
+      name: 'Security Evaluator',
+      role: 'operator',
+    };
   },
 };

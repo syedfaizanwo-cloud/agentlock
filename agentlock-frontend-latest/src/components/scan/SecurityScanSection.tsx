@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Agent, AttackCategory, Scan } from '../../types/api';
+import React, { useState } from 'react';
+import { Agent, AttackCategory, Scan, ALL_ATTACK_CATEGORIES, ATTACK_CATEGORY_LABELS } from '../../types/api';
 import { api } from '../../lib/api-client';
 import { ScanProgressVisualizer } from './ScanProgressVisualizer';
 import {
   ShieldAlert,
+  ShieldCheck,
   Zap,
   CheckCircle2,
   AlertTriangle,
@@ -14,7 +15,11 @@ import {
   Database,
   Lock,
   Brain,
+  Key,
+  CheckSquare,
+  Network,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 
 interface SecurityScanSectionProps {
@@ -26,32 +31,27 @@ interface SecurityScanSectionProps {
   setActiveScan: (scan: Scan | null) => void;
 }
 
-const CATEGORIES: { id: AttackCategory; label: string; desc: string; icon: any }[] = [
-  {
-    id: 'prompt_injection',
-    label: 'Prompt Injection',
-    desc: 'Direct and indirect instruction overrides, jailbreak delimiter tests',
-    icon: Terminal,
-  },
-  {
-    id: 'data_leakage',
-    label: 'Data Leakage',
-    desc: 'System prompt extraction, credentials, and sensitive data leakage checks',
-    icon: Database,
-  },
-  {
-    id: 'tool_abuse',
-    label: 'Tool Abuse',
-    desc: 'Unauthorized parameter tampering and unvalidated function calls',
-    icon: Lock,
-  },
-  {
-    id: 'memory_poisoning',
-    label: 'Memory Poisoning',
-    desc: 'Cross-session memory contamination and state manipulation',
-    icon: Brain,
-  },
-];
+const CATEGORY_ICONS: Record<AttackCategory, React.ElementType> = {
+  prompt_injection: Terminal,
+  indirect_prompt_injection: Terminal,
+  data_leakage: Database,
+  tool_abuse: Lock,
+  memory_poisoning: Brain,
+  identity_privilege_abuse: Key,
+  human_approval_bypass: CheckSquare,
+  inter_agent_spoofing: Network,
+};
+
+const CATEGORY_DESCS: Record<AttackCategory, string> = {
+  prompt_injection: 'Direct instruction override and delimiter hijack attacks',
+  indirect_prompt_injection: 'Third-party injection via external retrieved contexts',
+  data_leakage: 'System prompt exfiltration and secret extraction probes',
+  tool_abuse: 'Unauthorized parameter tampering and command execution',
+  memory_poisoning: 'Cross-session memory contamination and state alteration',
+  identity_privilege_abuse: 'Privilege escalation and unauthorized identity assumption',
+  human_approval_bypass: 'Circumvention of manual verification and oversight gates',
+  inter_agent_spoofing: 'Adversarial message forging in agent-to-agent meshes',
+};
 
 export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
   agents = [],
@@ -62,18 +62,11 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
   setActiveScan,
 }) => {
   const [selectedCategories, setSelectedCategories] = useState<AttackCategory[]>([
-    'prompt_injection',
-    'data_leakage',
-    'tool_abuse',
-    'memory_poisoning',
+    ...ALL_ATTACK_CATEGORIES,
   ]);
   const [hasAuthConsent, setHasAuthConsent] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
-  const [justCompleted, setJustCompleted] = useState(false);
-
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const pollBackoffRef = useRef(1500);
 
   const toggleCategory = (cat: AttackCategory) => {
     setSelectedCategories((prev) =>
@@ -81,10 +74,18 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
     );
   };
 
-  // Optimistic Scan Launch
+  const handleSelectAll = () => {
+    setSelectedCategories([...ALL_ATTACK_CATEGORIES]);
+  };
+
+  const handleClearAll = () => {
+    setSelectedCategories([]);
+  };
+
+  // Synchronous scan execution against FastAPI backend
   const handleStartScan = async () => {
     if (!selectedAgent) {
-      setScanError('Please select a target agent to scan');
+      setScanError('Please select an agent target to scan');
       return;
     }
     if (selectedCategories.length === 0) {
@@ -98,146 +99,114 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
 
     setScanError(null);
     setIsStarting(true);
-    setJustCompleted(false);
-
-    // Optimistically queue the scan
-    const optimisticScan: Scan = {
-      id: `scan-pending-${Date.now()}`,
-      agent_id: selectedAgent.id,
-      agent_name: selectedAgent.name,
-      status: 'running',
-      categories: selectedCategories,
-      progress: 5,
-      status_message: 'Queued: connecting to target agent...',
-      started_at: new Date().toISOString(),
-    };
-    setActiveScan(optimisticScan);
 
     try {
       const initiated = await api.startScan({
         agent_id: selectedAgent.id,
-        categories: selectedCategories,
+        attack_categories: selectedCategories,
       });
       setActiveScan(initiated);
+      onScanCompleted(initiated);
     } catch (err: any) {
-      setActiveScan(null);
       setScanError(
-        err?.message || 'Scan failed: the agent URL did not respond. Check the URL and try again.'
+        err?.message || 'Scan execution failed. Verify the backend connection and try again.'
       );
     } finally {
       setIsStarting(false);
     }
   };
 
-  // Poll active scan every ~1.5s
-  useEffect(() => {
-    if (!activeScan || activeScan.status !== 'running') {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-      return;
-    }
-
-    const poll = async () => {
-      if (document.hidden) return;
-
-      try {
-        const updated = await api.getScan(activeScan.id);
-        setActiveScan(updated);
-        pollBackoffRef.current = 1500;
-
-        if (updated.status === 'completed' || updated.status === 'failed') {
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-          }
-          if (updated.status === 'completed') {
-            setJustCompleted(true);
-            onScanCompleted(updated);
-          }
-        }
-      } catch {
-        pollBackoffRef.current = Math.min(pollBackoffRef.current * 1.5, 6000);
-      }
-    };
-
-    pollIntervalRef.current = setInterval(poll, pollBackoffRef.current);
-
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-    };
-  }, [activeScan, setActiveScan, onScanCompleted]);
-
-  const isScanning = activeScan !== null && activeScan.status === 'running';
-
   return (
-    <div className="space-y-8">
-      {/* Scanner Control & Staging */}
-      <div className={`p-6 rounded-xl bg-navy-900 border border-[#1A2E5A] space-y-6 ${
-        isScanning ? 'border-coral' : ''
-      }`}>
+    <div className="space-y-6">
+      <div className="p-6 rounded-xl bg-navy-900 border border-[#1A2E5A] space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1A2E5A]">
-          <div className="space-y-1">
-            <h3 className="text-base font-bold font-sans text-cream flex items-center gap-2">
-              <Zap className="w-4 h-4 text-coral" />
-              Configure security scan
-            </h3>
-            <p className="text-xs text-cream-muted font-sans">
-              Select an agent and adversarial test suites to evaluate.
+          <div>
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-coral" />
+              <h3 className="text-lg font-bold font-sans text-cream">
+                Automated Red Teaming Execution
+              </h3>
+            </div>
+            <p className="text-xs text-cream-muted mt-1 font-sans">
+              Launch synchronous adversarial security evaluations against autonomous agent targets.
             </p>
           </div>
 
-          {isScanning && (
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded text-xs font-mono font-medium bg-coral/10 text-coral border border-coral/30">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Scan in progress</span>
+          {selectedAgent && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-navy-950 border border-[#1A2E5A] text-xs font-mono">
+              <span className="text-cream-muted">Target:</span>
+              <span className="text-cream font-bold">{selectedAgent.name}</span>
+              <span className="text-coral">#{selectedAgent.id}</span>
             </div>
           )}
         </div>
 
         {/* Step 1: Select Target Agent */}
         <div className="space-y-3">
-          <label className="text-xs font-mono text-cream-soft">
-            1. Select target agent <span className="text-coral">*</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-mono text-cream-soft uppercase tracking-wider font-bold">
+              1. Select Target Agent <span className="text-coral">*</span>
+            </label>
+            <span className="text-xs font-mono text-cream-muted">
+              {agents.length} available
+            </span>
+          </div>
+
           {agents.length === 0 ? (
-            <div className="p-4 rounded-lg bg-navy-950 border border-[#1A2E5A] text-xs font-mono text-cream-soft flex items-center justify-between">
-              <span>No agents registered yet. Please add an agent first.</span>
-              <a href="#agents" className="text-coral hover:underline font-bold">
-                Add an agent
-              </a>
+            <div className="p-4 rounded-lg bg-navy-950 border border-[#1A2E5A] text-center space-y-2">
+              <p className="text-xs text-cream-muted font-sans">
+                No agents registered yet. Please add an agent in the Agent Inventory section first.
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {agents.map((agent) => {
                 const isSelected = selectedAgent?.id === agent.id;
+                const isVulnerable = agent.agent_type === 'vulnerable_mock';
                 return (
                   <button
                     key={agent.id}
                     type="button"
-                    disabled={isScanning}
                     onClick={() => onSelectAgent(agent)}
-                    className={`p-3.5 rounded-lg border text-left transition-colors ${
+                    disabled={isStarting}
+                    className={`p-4 rounded-xl text-left border transition-all ${
                       isSelected
-                        ? 'bg-coral/10 border-coral text-cream'
-                        : 'bg-navy-950 border-[#1A2E5A] hover:border-coral/50 text-cream-soft'
+                        ? 'bg-navy-850 border-coral ring-1 ring-coral shadow-lg'
+                        : 'bg-navy-950 border-[#1A2E5A] hover:border-coral/50'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold truncate">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold font-sans text-cream truncate">
                         {agent.name}
                       </span>
-                      {isSelected && (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-coral" />
-                      )}
+                      <span className="text-[11px] font-mono text-cream-muted">
+                        #{agent.id}
+                      </span>
                     </div>
-                    <div className="text-xs font-mono text-cream-muted truncate mt-1">
-                      {agent.target_url}
+                    <div className="flex items-center gap-2 mt-2">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono border ${
+                          isVulnerable
+                            ? 'bg-severity-critical/10 text-severity-critical border-severity-critical/30'
+                            : 'bg-severity-low/10 text-severity-low border-severity-low/30'
+                        }`}
+                      >
+                        {isVulnerable ? (
+                          <>
+                            <ShieldAlert className="w-3 h-3" />
+                            vulnerable_mock
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-3 h-3" />
+                            protected_mock
+                          </>
+                        )}
+                      </span>
+                      <span className="text-[10px] font-mono text-cream-muted">
+                        {agent.status}
+                      </span>
                     </div>
                   </button>
                 );
@@ -246,121 +215,146 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
           )}
         </div>
 
-        {/* Step 2: Select Attack Categories */}
-        <div className="space-y-3">
-          <label className="text-xs font-mono text-cream-soft">
-            2. Adversarial test suites ({selectedCategories.length}/4 selected)
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {CATEGORIES.map((cat) => {
-              const isChecked = selectedCategories.includes(cat.id);
-              const Icon = cat.icon;
+        {/* Step 2: Choose Attack Vectors (Eight Canonical Categories) */}
+        <div className="space-y-3 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-mono text-cream-soft uppercase tracking-wider font-bold">
+                2. Select Adversarial Test Suites <span className="text-coral">*</span>
+              </label>
+              <span className="text-xs font-mono text-coral bg-coral/10 px-2 py-0.5 rounded border border-coral/30">
+                {selectedCategories.length}/{ALL_ATTACK_CATEGORIES.length} Selected
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-mono">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                disabled={isStarting}
+                className="text-cream-muted hover:text-coral transition-colors"
+              >
+                Select All
+              </button>
+              <span className="text-[#1A2E5A]">|</span>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                disabled={isStarting}
+                className="text-cream-muted hover:text-coral transition-colors"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {ALL_ATTACK_CATEGORIES.map((catId) => {
+              const Icon = CATEGORY_ICONS[catId] || Terminal;
+              const isChecked = selectedCategories.includes(catId);
               return (
                 <div
-                  key={cat.id}
-                  onClick={() => !isScanning && toggleCategory(cat.id)}
-                  className={`p-4 rounded-lg border cursor-pointer select-none transition-colors flex items-start gap-3 ${
+                  key={catId}
+                  onClick={() => !isStarting && toggleCategory(catId)}
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all select-none space-y-2 ${
                     isChecked
-                      ? 'bg-coral/10 border-coral text-cream'
-                      : 'bg-navy-950 border-[#1A2E5A] text-cream-muted hover:border-coral/50'
+                      ? 'bg-navy-850 border-coral/80 shadow-md'
+                      : 'bg-navy-950 border-[#1A2E5A] opacity-60 hover:opacity-90'
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    disabled={isScanning}
-                    onChange={() => {}}
-                    className="mt-0.5 w-4 h-4 rounded border-[#1A2E5A] bg-navy-950 text-coral focus:ring-0"
-                  />
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 text-cream font-sans font-bold text-xs">
                       <Icon className={`w-3.5 h-3.5 ${isChecked ? 'text-coral' : 'text-cream-muted'}`} />
-                      <span className="text-xs font-mono font-bold text-cream">
-                        {cat.label}
-                      </span>
+                      <span>{ATTACK_CATEGORY_LABELS[catId]}</span>
                     </div>
-                    <p className="text-xs font-sans text-cream-muted leading-relaxed">
-                      {cat.desc}
-                    </p>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}}
+                      className="w-3.5 h-3.5 rounded border-[#1A2E5A] bg-navy-950 text-coral focus:ring-coral pointer-events-none mt-0.5"
+                    />
                   </div>
+                  <p className="text-[11px] text-cream-muted font-sans leading-tight">
+                    {CATEGORY_DESCS[catId]}
+                  </p>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Authorization Consent Checkbox */}
-        <div className="pt-2">
+        {/* Authorization Consent */}
+        <div className="pt-2 border-t border-[#1A2E5A]">
           <label className="flex items-start gap-3 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={hasAuthConsent}
-              disabled={isScanning}
               onChange={(e) => setHasAuthConsent(e.target.checked)}
+              disabled={isStarting}
               className="mt-0.5 w-4 h-4 rounded border-[#1A2E5A] bg-navy-950 text-coral focus:ring-2 focus:ring-coral"
             />
             <span className="text-xs font-sans text-cream-soft leading-relaxed">
-              I certify that I am authorized to conduct controlled red teaming tests against this AI agent endpoint.
+              I authorize AgentLock to execute adversarial security evaluation tests against this target agent.
             </span>
           </label>
         </div>
 
+        {/* Error Display */}
         {scanError && (
-          <div className="p-3 rounded-lg bg-severity-critical/10 border border-severity-critical/30 text-xs font-mono text-severity-critical">
-            {scanError}
+          <div className="p-4 rounded-xl bg-severity-critical/10 border border-severity-critical/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-severity-critical">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{scanError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleStartScan}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-severity-critical text-white font-bold hover:bg-severity-critical/90 self-start sm:self-auto"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Retry Scan
+            </button>
           </div>
         )}
 
-        {/* Action Button */}
-        <div className="pt-2 flex items-center justify-between">
-          <div className="text-xs font-mono text-cream-muted">
-            {isScanning ? 'Scan in progress' : 'Ready to evaluate'}
+        {/* Active Execution Banner */}
+        {isStarting && (
+          <div className="p-4 rounded-xl bg-navy-950 border border-coral/50 flex items-center gap-3 text-xs font-mono text-coral animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+            <span>
+              Executing eight adversarial security tests against agent #{selectedAgent?.id}... Running prompt injection, tool abuse, and data leakage simulations.
+            </span>
           </div>
+        )}
 
+        {/* Launch Button */}
+        <div className="flex justify-end pt-2">
           <button
             type="button"
-            disabled={isScanning || isStarting || !hasAuthConsent || !selectedAgent}
             onClick={handleStartScan}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-coral text-navy-950 font-bold text-xs tracking-wide hover:bg-coral-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-coral"
+            disabled={isStarting || !selectedAgent || selectedCategories.length === 0 || !hasAuthConsent}
+            className="inline-flex items-center gap-2.5 px-6 py-3 rounded-xl bg-coral text-navy-950 font-bold text-xs tracking-wider uppercase hover:bg-coral-hover disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-coral"
           >
             {isStarting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Initializing...</span>
-              </>
-            ) : isScanning ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Evaluating...</span>
+                Executing Scan...
               </>
             ) : (
               <>
                 <Zap className="w-4 h-4" />
-                <span>Start scan</span>
+                Run Security Scan
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Live Scan Staging Progress Visualizer */}
+      {/* Visualizer for Active or Just Completed Scan */}
       {activeScan && (
-        <div className="space-y-4">
-          <ScanProgressVisualizer scan={activeScan} />
-          {activeScan.status === 'completed' && (
-            <div className="p-4 rounded-xl bg-navy-900 border border-severity-low/40 flex items-center justify-between">
-              <span className="text-xs font-mono text-severity-low">
-                Scan concluded: {activeScan.vulnerabilities_found ?? 0} vulnerabilities detected.
-              </span>
-              <a
-                href="#results"
-                className="px-4 py-2 rounded-lg bg-coral text-navy-950 font-bold text-xs hover:bg-coral-hover transition-colors"
-              >
-                View scan findings
-              </a>
-            </div>
-          )}
-        </div>
+        <ScanProgressVisualizer
+          scan={activeScan}
+        />
       )}
     </div>
   );

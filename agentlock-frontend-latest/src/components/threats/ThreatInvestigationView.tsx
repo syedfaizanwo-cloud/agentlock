@@ -72,7 +72,7 @@ export const ThreatInvestigationView: React.FC<ThreatInvestigationViewProps> = (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1A2E5A]">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
-            {getSeverityBadge(finding.severity)}
+            {getSeverityBadge(finding.severity as SeverityLevel)}
             <span className="px-2 py-0.5 rounded text-xs font-mono bg-navy-850 border border-[#1A2E5A] text-cream-soft">
               {finding.category.replace('_', ' ')}
             </span>

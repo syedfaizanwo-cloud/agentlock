@@ -37,7 +37,7 @@ export function ReportsPageClient() {
     loadData();
   }, [loadData]);
 
-  const handleSelectScan = (scanId: string) => {
+  const handleSelectScan = (scanId: string | number) => {
     router.push(`/scans/${encodeURIComponent(scanId)}`);
   };
 

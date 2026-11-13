@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { DashboardFilters, FilterState } from './DashboardFilters';
-import { DashboardStats, Scan, Agent, Finding, SeverityLevel, AttackCategory } from '../../types/api';
+import { DashboardStats, Scan, Agent, Finding, SeverityLevel, AttackCategory, ALL_ATTACK_CATEGORIES, ATTACK_CATEGORY_LABELS } from '../../types/api';
 
 // Dynamic lazy imports for heavy chart and drawer components
 const SeverityDonut = dynamic(
@@ -85,63 +85,84 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
   const [drawerFinding, setDrawerFinding] = useState<Finding | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+  const agentScanIds = useMemo(() => {
+    if (filters.agentId === 'ALL') return null;
+    const targetId = Number(filters.agentId);
+    return new Set(scans.filter((s) => s.agent_id === targetId).map((s) => s.id));
+  }, [scans, filters.agentId]);
+
   const filteredFindings = useMemo(() => {
     return findings.filter((f) => {
-      if (filters.agentId !== 'ALL' && f.agent_id !== filters.agentId) return false;
+      if (agentScanIds && !agentScanIds.has(f.scan_id)) return false;
       if (filters.category !== 'ALL' && f.category !== filters.category) return false;
-      if (filters.severity !== 'ALL' && f.severity !== filters.severity) return false;
+      if (filters.severity !== 'ALL' && f.severity.toLowerCase() !== filters.severity.toLowerCase()) return false;
       return true;
     });
-  }, [findings, filters]);
+  }, [findings, filters, agentScanIds]);
 
   const categoryData = useMemo(() => {
     if (findings.length > 0) {
-      const counts: Record<string, number> = {
-        'Prompt Injection': 0,
-        'Data Leakage': 0,
-        'Tool Abuse': 0,
-        'Memory Poisoning': 0,
-      };
-      filteredFindings.forEach((f) => {
-        if (f.category === 'prompt_injection') counts['Prompt Injection']++;
-        if (f.category === 'data_leakage') counts['Data Leakage']++;
-        if (f.category === 'tool_abuse') counts['Tool Abuse']++;
-        if (f.category === 'memory_poisoning') counts['Memory Poisoning']++;
+      const counts: Record<string, number> = {};
+      ALL_ATTACK_CATEGORIES.forEach((cat) => {
+        counts[cat] = 0;
       });
-      return Object.entries(counts).map(([category, count]) => ({ category, count }));
+      filteredFindings.forEach((f) => {
+        if (counts[f.category] !== undefined) counts[f.category]++;
+      });
+      return ALL_ATTACK_CATEGORIES.map((cat) => ({
+        category: ATTACK_CATEGORY_LABELS[cat] || cat,
+        count: counts[cat] || 0,
+      }));
     }
 
-    if (stats?.category_breakdown) {
-      return [
-        { category: 'Prompt Injection', count: stats.category_breakdown.prompt_injection },
-        { category: 'Data Leakage', count: stats.category_breakdown.data_leakage },
-        { category: 'Tool Abuse', count: stats.category_breakdown.tool_abuse },
-        { category: 'Memory Poisoning', count: stats.category_breakdown.memory_poisoning },
-      ];
+    if (stats?.results?.by_category) {
+      return ALL_ATTACK_CATEGORIES.map((cat) => ({
+        category: ATTACK_CATEGORY_LABELS[cat] || cat,
+        count: stats.results.by_category[cat] || 0,
+      }));
     }
     return [];
   }, [findings, filteredFindings, stats]);
 
   const severityData = useMemo(() => {
+    const counts: Record<SeverityLevel, number> = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      info: 0,
+    };
     if (findings.length > 0) {
-      const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
       filteredFindings.forEach((f) => {
-        if (counts[f.severity] !== undefined) counts[f.severity]++;
+        const sev = f.severity.toLowerCase() as SeverityLevel;
+        if (counts[sev] !== undefined) counts[sev]++;
       });
       return counts;
     }
-    return stats?.severity_breakdown || {};
+    if (stats?.results?.by_severity) {
+      (Object.keys(counts) as SeverityLevel[]).forEach((sev) => {
+        counts[sev] = stats.results.by_severity[sev] || 0;
+      });
+      return counts;
+    }
+    return counts;
   }, [findings, filteredFindings, stats]);
 
   const timelineData = useMemo(() => {
-    return scans.map((s, idx) => ({
-      scan: `Scan #${idx + 1}`,
-      scanId: s.id,
-      date: new Date(s.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      timestamp: new Date(s.started_at).getTime(),
-      findings: s.vulnerabilities_found || 0,
-    }));
-  }, [scans]);
+    return scans.map((s, idx) => {
+      const scanFindings = findings.filter((f) => f.scan_id === s.id);
+      return {
+        scan: `Scan #${idx + 1}`,
+        scanId: String(s.id),
+        date: new Date(s.started_at || s.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        timestamp: new Date(s.started_at || s.created_at).getTime(),
+        findings: scanFindings.length,
+      };
+    });
+  }, [scans, findings]);
 
   const handleSelectSeverity = (sev: SeverityLevel) => {
     if (filters.severity === sev) {
@@ -166,14 +187,15 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
   };
 
   const handleCellSelect = (agent: Agent, category: AttackCategory) => {
+    const aScanIds = new Set(scans.filter((s) => s.agent_id === agent.id).map((s) => s.id));
     const match = findings.find(
-      (f) => f.agent_id === agent.id && f.category === category
+      (f) => aScanIds.has(f.scan_id) && f.category === category
     );
     if (match) {
       setDrawerFinding(match);
       setIsDrawerOpen(true);
     } else {
-      updateFilters({ agentId: agent.id, category, severity: 'ALL' });
+      updateFilters({ agentId: String(agent.id), category, severity: 'ALL' });
     }
   };
 

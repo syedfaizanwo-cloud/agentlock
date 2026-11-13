@@ -4,6 +4,17 @@ All notable changes to the AgentLock project will be documented in this file.
 
 ## [Unreleased] - 2026-11-13
 
+### FastAPI Backend Integration, Eight-Attack Security Engine, and Camera-Zoom Intro
+- `src/types/api.ts`: Aligned data models with actual FastAPI backend and Faizan's attack engine. Added all eight canonical attack categories (prompt_injection, indirect_prompt_injection, data_leakage, tool_abuse, memory_poisoning, identity_privilege_abuse, human_approval_bypass, inter_agent_spoofing). Added nested DashboardStats schema, AgentComparisonResponse, numeric IDs, and finding view-model adapter.
+- `src/lib/api-client.ts`: Rewritten API client using native fetch with structured ApiError handling, cache invalidation, synchronous scan launch (POST /api/scans), comparison endpoint (GET /api/dashboard/comparison), report generation (POST /api/scans/{id}/report), and PDF streaming (GET /api/reports/{id}/pdf).
+- `src/components/intro/ShieldZoomIntro.tsx`: Implemented cinematic opening camera-zoom introduction. Center-aligned SVG coral square with shield cutout, readiness signals (fonts, window, Three.js canvas), log-space keyframe interpolation scale = S^easedT via Web Animations API, prefers-reduced-motion support, sessionStorage memoization, skip on keypress/click, and head script anti-flash detection.
+- `src/components/scan/SecurityScanSection.tsx`: Upgraded to all eight canonical attack categories with Select All, Clear All, and active selection counter. Added target selection for vulnerable and protected demo agents, and synchronous execution feedback.
+- `src/components/agents/AgentManagementView.tsx`: Added quick-deploy buttons for Vulnerable Mock Agent and Protected Mock Agent. Removed target_url and api_key fields. Displayed numeric IDs and architectural type badges.
+- `src/components/reports/ScanComparisonView.tsx`: Integrated backend comparison endpoint (/api/dashboard/comparison) displaying high-level outcome summaries and an eight-row side-by-side differential analysis table.
+- `src/components/reports/ScanReportModal.tsx`: Updated PDF workflow to request backend report creation and binary PDF download with client-side jsPDF fallback.
+- `src/middleware.ts`: Removed mandatory route gating on /, /agents, /scans, /reports, /faq to provide frictionless public evaluator access.
+- `src/components/ui/wave-grid-background.tsx`: Added agentlock-wave-ready event dispatching and readiness flag for seamless intro handoff.
+
 ### Authentication Page Redesign and Cleanup
 - `src/app/login/layout.tsx`: Removed header bar, "Back to site" link, and opaque background so the 3D wave-grid background shows behind the login view.
 - `src/app/login/LoginFormClient.tsx`: Removed "AgentLock Security Console" badge, "Security evaluation for..." headline and paragraph, runtime pipeline card, sample finding card, and "Need an enterprise account? Request access" footer. Converted to a clean two-column desktop layout with the animated AgentLock logo centered on the left, and single-column centered mobile layout. Single H1 heading "Log in to AgentLock".

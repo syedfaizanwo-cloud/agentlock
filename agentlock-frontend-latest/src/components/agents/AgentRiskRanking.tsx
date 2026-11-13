@@ -19,7 +19,7 @@ export const AgentRiskRanking: React.FC<AgentRiskRankingProps> = ({
   onSelectAgent,
 }) => {
   const [showTable, setShowTable] = useState(false);
-  const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
+  const [expandedAgentId, setExpandedAgentId] = useState<number | null>(null);
 
   const rankedAgents = getAgentRiskRanking(agents, findings, scans);
   const maxScore = Math.max(...rankedAgents.map((a) => a.riskScore), 1);
@@ -134,7 +134,7 @@ export const AgentRiskRanking: React.FC<AgentRiskRankingProps> = ({
                     {getStatusIcon(agent.status)}
                     <span className="font-bold text-cream truncate">{agent.name}</span>
                     <span className="font-mono text-[11px] text-cream-muted truncate max-w-[140px] sm:max-w-xs">
-                      {agent.targetUrl}
+                      #{agent.agentId} ({agent.agentType ? agent.agentType.replace('_', ' ') : 'mock'})
                     </span>
                   </div>
 

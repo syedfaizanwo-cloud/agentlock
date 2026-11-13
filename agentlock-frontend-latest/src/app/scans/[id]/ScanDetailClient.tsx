@@ -27,10 +27,11 @@ export function ScanDetailClient({ scanId }: ScanDetailClientProps) {
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
+    const numericScanId = Number(scanId);
     const [connRes, scanRes, findingsRes] = await Promise.allSettled([
       api.checkConnection(),
-      api.getScan(scanId),
-      api.getScanResults(scanId),
+      api.getScan(numericScanId),
+      api.getScanFindings(numericScanId),
     ]);
 
     if (connRes.status === 'fulfilled') {
@@ -57,10 +58,12 @@ export function ScanDetailClient({ scanId }: ScanDetailClientProps) {
   const handleDownloadPdf = async () => {
     if (!scan) return;
     setIsDownloadingPdf(true);
+    const numericScanId = Number(scanId);
     try {
       let blob: Blob;
       try {
-        blob = await api.downloadReportPdf(scanId);
+        const report = await api.generateReport(numericScanId);
+        blob = await api.downloadReportPdf(report.id);
       } catch {
         blob = await generateClientSidePdfReport({
           scan,
@@ -70,8 +73,8 @@ export function ScanDetailClient({ scanId }: ScanDetailClientProps) {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const safeAgentName = (scan.agent_name || scan.agent_id || scanId).toLowerCase().replace(/[^a-z0-9]/g, '-');
-      a.download = `agentlock-report-${safeAgentName}-${scanId.slice(0, 8)}.pdf`;
+      const safeAgentName = scan.agent_id ? `agent-${scan.agent_id}` : 'agentlock';
+      a.download = `agentlock-report-${safeAgentName}-scan-${numericScanId}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -112,7 +115,7 @@ export function ScanDetailClient({ scanId }: ScanDetailClientProps) {
               </Link>
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-cream font-display">
-              Scan Results: {scan?.agent_name || scanId}
+              Scan Results: #{scanId} {scan?.agent_id ? `(Agent #${scan.agent_id})` : ''}
             </h1>
             <div className="flex flex-wrap items-center gap-4 mt-2 text-xs font-mono text-cream-muted">
               {scan?.agent_id && (

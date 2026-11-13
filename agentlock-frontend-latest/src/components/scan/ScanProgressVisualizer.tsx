@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Scan, AttackCategory, Finding } from '../../types/api';
+import { Scan, Finding } from '../../types/api';
 import { getCategoryProgress } from '../../lib/chart-data';
-import { Loader2, CheckCircle2, ShieldAlert, Terminal, AlertTriangle } from 'lucide-react';
+import { Loader2, CheckCircle2, ShieldAlert, Terminal } from 'lucide-react';
 
 interface ScanProgressVisualizerProps {
   scan: Scan;
@@ -14,12 +14,13 @@ export const ScanProgressVisualizer: React.FC<ScanProgressVisualizerProps> = ({
   scan,
   recentFindings = [],
 }) => {
-  const segments = getCategoryProgress(scan, scan.categories);
-  const totalFindings = scan.vulnerabilities_found ?? recentFindings.length;
+  const segments = getCategoryProgress(scan, scan.attack_categories);
+  const totalFindings = recentFindings.length;
+  const numCategories = scan.attack_categories?.length || 8;
 
   return (
     <div className="p-6 rounded-xl bg-navy-900 border border-coral/40 space-y-6">
-      {/* Top Status Header & Live Findings Counter */}
+      {/* Top Status Header & Findings Counter */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1A2E5A]">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -37,21 +38,20 @@ export const ScanProgressVisualizer: React.FC<ScanProgressVisualizerProps> = ({
               </span>
             )}
             <span className="font-mono text-xs text-cream font-bold">
-              {scan.agent_name || scan.agent_id}
+              Scan #{scan.id} {scan.agent_id ? `(Agent #${scan.agent_id})` : ''}
             </span>
           </div>
 
           <p className="text-xs text-cream-muted font-sans">
-            {scan.status_message ||
-              `Executing adversarial suites across ${scan.categories.length} attack vectors`}
+            Adversarial red teaming evaluation across {numCategories} attack vector suites
           </p>
         </div>
 
-        {/* Live Findings Counter */}
+        {/* Findings Counter */}
         <div className="flex items-center gap-4 bg-navy-950 px-4 py-2 rounded-lg border border-[#1A2E5A]">
           <div className="text-right">
             <div className="text-[10px] font-mono text-cream-muted uppercase tracking-wider">
-              Vulnerabilities
+              Confirmed Findings
             </div>
             <div className="text-xl font-mono font-bold text-coral transition-transform duration-300">
               {totalFindings}
@@ -61,11 +61,11 @@ export const ScanProgressVisualizer: React.FC<ScanProgressVisualizerProps> = ({
         </div>
       </div>
 
-      {/* Segmented Progress Bar by Test Category */}
+      {/* Segmented Status by Test Category */}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs font-mono text-cream-muted">
-          <span>Vector evaluation progress</span>
-          <span>{scan.progress ?? 0}% overall</span>
+          <span>Vector evaluation status</span>
+          <span>{scan.status === 'completed' ? '100% complete' : scan.status === 'running' ? 'Running' : 'Queued'}</span>
         </div>
 
         {/* Multi-segment track */}
@@ -88,21 +88,20 @@ export const ScanProgressVisualizer: React.FC<ScanProgressVisualizerProps> = ({
                       : 'text-cream-muted'
                   }
                 >
-                  {seg.isCompleted ? '100%' : `${seg.percent}%`}
+                  {seg.isCompleted ? 'Pass/Done' : seg.isRunning ? 'Testing' : 'Pending'}
                 </span>
               </div>
 
-              {/* Progress track */}
+              {/* Status track */}
               <div className="w-full h-1.5 rounded-full bg-navy-900 overflow-hidden border border-[#1A2E5A]/50">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ease-out ${
                     seg.isCompleted
-                      ? 'bg-severity-low'
+                      ? 'bg-severity-low w-full'
                       : seg.isRunning
-                      ? 'bg-coral'
-                      : 'bg-navy-850'
+                      ? 'bg-coral w-2/3 animate-pulse'
+                      : 'bg-navy-850 w-0'
                   }`}
-                  style={{ width: `${seg.percent}%` }}
                 />
               </div>
             </div>
@@ -110,22 +109,19 @@ export const ScanProgressVisualizer: React.FC<ScanProgressVisualizerProps> = ({
         </div>
       </div>
 
-      {/* Real-time Findings Stream Slide-in Feed */}
+      {/* Real-time Findings Stream Feed */}
       {recentFindings.length > 0 && (
         <div className="space-y-2 pt-2 border-t border-[#1A2E5A]">
           <div className="text-xs font-mono text-cream-muted flex items-center gap-1.5">
             <Terminal className="w-3.5 h-3.5 text-coral" />
-            <span>Live exploit stream</span>
+            <span>Vulnerability telemetry</span>
           </div>
 
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {recentFindings.slice(0, 5).map((f) => (
               <div
                 key={f.id}
-                className="p-2.5 rounded-lg bg-navy-950 border border-[#1A2E5A] flex items-center justify-between gap-3 text-xs font-mono animate-fadeIn"
-                style={{
-                  transition: 'transform 0.2s ease, opacity 0.2s ease',
-                }}
+                className="p-2.5 rounded-lg bg-navy-950 border border-[#1A2E5A] flex items-center justify-between gap-3 text-xs font-mono"
               >
                 <div className="flex items-center gap-2 truncate">
                   <span

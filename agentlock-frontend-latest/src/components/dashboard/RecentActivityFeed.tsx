@@ -6,7 +6,7 @@ import { ShieldCheck, ShieldAlert, Clock, Loader2 } from 'lucide-react';
 
 interface RecentActivityFeedProps {
   scans: Scan[];
-  onSelectScan?: (scanId: string) => void;
+  onSelectScan?: (scanId: string | number) => void;
   onViewAll?: () => void;
 }
 
@@ -66,21 +66,19 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs font-bold text-cream">
-                {scan.agent_name || scan.agent_id}
+                {scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`}
               </span>
               {getStatusBadge(scan.status)}
             </div>
             <div className="text-xs font-mono text-cream-muted">
-              {new Date(scan.started_at).toLocaleString()} | Categories: {scan.categories.join(', ')}
+              {new Date(scan.started_at || scan.created_at).toLocaleString()} | Categories: {(scan.attack_categories || []).length} vectors
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {typeof scan.vulnerabilities_found === 'number' && (
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-coral/10 border border-coral/30 text-coral">
-                {scan.vulnerabilities_found} findings
-              </span>
-            )}
+            <span className="text-xs font-mono px-2 py-0.5 rounded bg-coral/10 border border-coral/30 text-coral">
+              {(scan.attack_categories || []).length} tested
+            </span>
           </div>
         </div>
       ))}

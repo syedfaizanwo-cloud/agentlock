@@ -100,7 +100,7 @@ export const FindingDetailDrawer: React.FC<FindingDetailDrawerProps> = ({
           <div className="p-6 border-b border-[#1A2E5A] bg-navy-950 flex items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                {getSeverityBadge(finding.severity)}
+                {getSeverityBadge(finding.severity as SeverityLevel)}
                 <span className="px-2 py-0.5 rounded text-xs font-mono bg-navy-850 text-cream-soft border border-[#1A2E5A]">
                   {finding.category.replace('_', ' ')}
                 </span>

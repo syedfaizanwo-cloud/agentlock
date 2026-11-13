@@ -11,7 +11,7 @@ import { api } from '../../lib/api-client';
 interface ReportsSectionProps {
   scans: Scan[];
   findings?: Finding[];
-  onSelectScan?: (scanId: string) => void;
+  onSelectScan?: (scanId: number | string) => void;
   onRefresh?: () => void;
   isLoading?: boolean;
 }
@@ -26,14 +26,14 @@ export const ReportsSection: React.FC<ReportsSectionProps> = ({
   const [reportModalScan, setReportModalScan] = useState<Scan | null>(null);
   const [modalFindings, setModalFindings] = useState<Finding[]>([]);
 
-  const handleOpenReportModal = async (scanId: string) => {
+  const handleOpenReportModal = async (scanId: number) => {
     const targetScan = scans.find((s) => s.id === scanId);
     if (!targetScan) return;
 
     let scanFindings = findings.filter((f) => f.scan_id === scanId);
     if (scanFindings.length === 0) {
       try {
-        scanFindings = await api.getScanResults(scanId);
+        scanFindings = await api.getScanFindings(scanId);
       } catch {
         scanFindings = [];
       }
@@ -44,7 +44,7 @@ export const ReportsSection: React.FC<ReportsSectionProps> = ({
   };
 
   const completedScans = scans.filter((s) => s.status === 'completed');
-  const totalFindings = scans.reduce((acc, s) => acc + (s.vulnerabilities_found || 0), 0);
+  const totalFindings = scans.reduce((acc, s) => acc + (s.attack_categories?.length || 0), 0);
 
   return (
     <div className="space-y-6">

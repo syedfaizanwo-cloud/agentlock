@@ -4,7 +4,7 @@
  * Only imported dynamically upon user request.
  */
 
-import { Scan, Finding, User } from '../types/api';
+import { Scan, Finding, User, SeverityLevel } from '../types/api';
 import { getSeverityCounts, getCategoryCounts, getCategoryBySeverity, SEVERITY_COLORS } from './chart-data';
 import { maskSensitiveEvidence } from '../components/results/FindingStepDiagram';
 
@@ -49,7 +49,7 @@ export async function generateClientSidePdfReport({
     doc.setTextColor(140, 140, 140);
     // Header
     doc.text('AgentLock AI Agent Security Audit Report', margin, 25);
-    doc.text(`Scan: ${scan.id.slice(0, 16)}`, pageWidth - margin, 25, { align: 'right' });
+    doc.text(`Scan: #${scan.id}`, pageWidth - margin, 25, { align: 'right' });
     doc.setDrawColor(230, 230, 230);
     doc.setLineWidth(0.5);
     doc.line(margin, 30, pageWidth - margin, 30);
@@ -103,12 +103,12 @@ export async function generateClientSidePdfReport({
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(15, 23, 42);
 
-  doc.text(scan.agent_name || scan.agent_id, col1 + 75, y + 20);
-  doc.text(scan.agent_id, col1 + 85, y + 36);
+  doc.text(scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`, col1 + 75, y + 20);
+  doc.text(scan.agent_id ? `#${scan.agent_id}` : 'Standard Mock', col1 + 85, y + 36);
   doc.text(currentUser?.email || currentUser?.name || 'Authorized Security Operator', col1 + 60, y + 52);
 
-  doc.text(scan.id, col2 + 50, y + 20);
-  doc.text(new Date(scan.started_at).toLocaleString(), col2 + 85, y + 36);
+  doc.text(String(scan.id), col2 + 50, y + 20);
+  doc.text(new Date(scan.started_at || scan.created_at).toLocaleString(), col2 + 85, y + 36);
   doc.text(scan.status.toUpperCase(), col2 + 70, y + 52);
 
   y += 95;
@@ -132,8 +132,8 @@ export async function generateClientSidePdfReport({
   else if (findings.length > 0) overallRisk = 'MEDIUM';
 
   const summaryText =
-    `AgentLock completed automated adversarial security testing against agent "${scan.agent_name || scan.agent_id}". ` +
-    `A total of ${findings.length} confirmed vulnerabilities were identified across ${scan.categories.length} evaluated attack categories. ` +
+    `AgentLock completed automated adversarial security testing against agent "${scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`}". ` +
+    `A total of ${findings.length} confirmed vulnerabilities were identified across ${(scan.attack_categories || []).length} evaluated attack categories. ` +
     `The evaluation revealed ${criticalCount} critical-severity exploits and ${highCount} high-severity findings requiring immediate intervention. ` +
     `Immediate remediation is recommended prior to exposing this agentic workflow to untrusted external inputs.`;
 
@@ -254,7 +254,7 @@ export async function generateClientSidePdfReport({
       doc.text(finding.title.slice(0, 70), margin + 30, y + 15);
 
       doc.setFontSize(8);
-      const sevColor = SEVERITY_COLORS[finding.severity] || '#64748B';
+      const sevColor = SEVERITY_COLORS[finding.severity.toLowerCase() as SeverityLevel] || '#64748B';
       doc.setTextColor(sevColor);
       doc.text(finding.severity.toUpperCase(), pageWidth - margin - 50, y + 15, { align: 'right' });
 

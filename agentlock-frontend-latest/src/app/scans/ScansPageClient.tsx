@@ -41,7 +41,7 @@ export function ScansPageClient() {
     if (agentsRes.status === 'fulfilled') {
       setAgents(agentsRes.value);
       if (requestedAgentId) {
-        const found = agentsRes.value.find((a) => a.id === requestedAgentId);
+        const found = agentsRes.value.find((a) => String(a.id) === String(requestedAgentId));
         if (found) setSelectedAgent(found);
       }
     }
@@ -61,7 +61,7 @@ export function ScansPageClient() {
     router.push(`/scans/${encodeURIComponent(completedScan.id)}`);
   };
 
-  const handleSelectScan = (scanId: string) => {
+  const handleSelectScan = (scanId: number | string) => {
     router.push(`/scans/${encodeURIComponent(scanId)}`);
   };
 
@@ -70,7 +70,6 @@ export function ScansPageClient() {
       <TopBar
         activeSectionId="scan"
         isScanning={activeScan !== null && activeScan.status === 'running'}
-        scanProgress={activeScan?.progress}
         backendOnline={backendOnline}
         latencyMs={latencyMs}
         counts={{

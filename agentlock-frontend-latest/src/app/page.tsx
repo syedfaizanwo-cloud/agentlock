@@ -13,6 +13,7 @@ import { VulnerabilityResultsSection } from '../components/results/Vulnerability
 import { ReportsSection } from '../components/reports/ReportsSection';
 import { FAQSection } from '../components/faq/FAQSection';
 import { SiteFooter } from '../components/layout/SiteFooter';
+import { ShieldZoomIntro } from '../components/intro/ShieldZoomIntro';
 import { api } from '../lib/api-client';
 import { getRealSparkline } from '../lib/chart-data';
 import { Agent, Scan, DashboardStats, RegisterAgentPayload, Finding } from '../types/api';
@@ -48,10 +49,10 @@ export default function HomePage() {
   });
 
   // Handler to fetch findings for a specific scan and navigate to #results
-  const handleSelectScan = useCallback(async (scanId: string) => {
+  const handleSelectScan = useCallback(async (scanId: string | number) => {
     setIsLoadingFindings(true);
     try {
-      const res = await api.getScanResults(scanId);
+      const res = await api.getScanFindings(Number(scanId));
       setFindings(res);
       const resultsEl = document.getElementById('results');
       if (resultsEl) {
@@ -107,7 +108,7 @@ export default function HomePage() {
         const latestCompleted = sc.find((s) => s.status === 'completed') || sc[0];
         if (latestCompleted) {
           try {
-            const f = await api.getScanResults(latestCompleted.id);
+            const f = await api.getScanFindings(latestCompleted.id);
             setFindings((prev) => (prev.length === 0 ? f : prev));
           } catch {
             // Keep empty findings if unavailable
@@ -144,27 +145,13 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
 
-  // Optimistic agent registration handler
+  // Agent registration handler
   const handleRegisterAgent = async (payload: RegisterAgentPayload) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticAgent: Agent = {
-      id: tempId,
-      name: payload.name,
-      target_url: payload.target_url,
-      description: payload.description,
-      status: 'active',
-      created_at: new Date().toISOString(),
-    };
-
-    setAgents((prev) => [optimisticAgent, ...prev]);
-
     try {
       const created = await api.registerAgent(payload);
-      setAgents((prev) => prev.map((a) => (a.id === tempId ? created : a)));
-      // Refresh stats in background
+      setAgents((prev) => [created, ...prev]);
       api.getDashboardStats().then((s) => setStats(s)).catch(() => {});
     } catch (err) {
-      setAgents((prev) => prev.filter((a) => a.id !== tempId));
       throw err;
     }
   };
@@ -181,15 +168,15 @@ export default function HomePage() {
   const handleScanCompleted = useCallback(
     async (completedScan: Scan) => {
       setActiveScan(completedScan);
-      // Concurrently update scan results and list
-      const [resultsRes] = await Promise.allSettled([
-        api.getScanResults(completedScan.id),
+      // Concurrently update scan results, stats, and scan list
+      const [findingsRes] = await Promise.allSettled([
+        api.getScanFindings(completedScan.id),
         api.getDashboardStats().then((s) => setStats(s)),
         api.getScans().then((sc) => setScans(sc)),
       ]);
 
-      if (resultsRes.status === 'fulfilled') {
-        setFindings(resultsRes.value);
+      if (findingsRes.status === 'fulfilled') {
+        setFindings(findingsRes.value);
         const resultsEl = document.getElementById('results');
         if (resultsEl) {
           resultsEl.scrollIntoView({ behavior: 'smooth' });
@@ -202,11 +189,13 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen text-[#F5EDDC]">
+      {/* Cinematic Opening Camera-Zoom Intro */}
+      <ShieldZoomIntro />
+
       {/* Fixed TopBar with scroll-spy & connection monitor */}
       <TopBar
         activeSectionId={activeSectionId}
         isScanning={activeScan !== null && activeScan.status === 'running'}
-        scanProgress={activeScan?.progress}
         backendOnline={backendOnline}
         latencyMs={latencyMs}
         counts={{
@@ -248,7 +237,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <MetricTile
               title="Registered Agents"
-              value={isLoadingStats ? '-' : stats?.registered_agents ?? agents.length}
+              value={isLoadingStats ? '-' : stats?.agents?.total ?? agents.length}
               subtitle="Active target inventory"
               icon={Bot}
               targetSectionId="#agents"
@@ -256,28 +245,28 @@ export default function HomePage() {
 
             <MetricTile
               title="Total Scans"
-              value={isLoadingStats ? '-' : stats?.total_scans ?? scans.length}
+              value={isLoadingStats ? '-' : stats?.scans?.total ?? scans.length}
               subtitle="Adversarial evaluations"
               icon={Activity}
-              sparklineData={getRealSparkline(scans, 'total_tests')}
+              sparklineData={getRealSparkline(scans)}
               targetSectionId="#reports"
             />
 
             <MetricTile
               title="Confirmed Vulns"
-              value={isLoadingStats ? '-' : stats?.confirmed_vulnerabilities ?? 0}
+              value={isLoadingStats ? '-' : stats?.results?.confirmed_vulnerabilities ?? 0}
               subtitle="Verified security flaws"
               icon={AlertTriangle}
-              sparklineData={getRealSparkline(scans, 'vulnerabilities')}
+              sparklineData={getRealSparkline(scans)}
               targetSectionId="#results"
             />
 
             <MetricTile
               title="Critical Findings"
-              value={isLoadingStats ? '-' : stats?.critical_findings ?? 0}
+              value={isLoadingStats ? '-' : stats?.results?.by_severity?.critical ?? 0}
               subtitle="Immediate action required"
               icon={ShieldAlert}
-              sparklineData={getRealSparkline(scans, 'vulnerabilities')}
+              sparklineData={getRealSparkline(scans)}
               targetSectionId="#results"
               badge="CRITICAL"
             />

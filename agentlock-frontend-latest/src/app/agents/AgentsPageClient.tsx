@@ -41,23 +41,10 @@ export function AgentsPageClient() {
   }, [loadData]);
 
   const handleRegisterAgent = async (payload: RegisterAgentPayload) => {
-    const tempId = `temp-${Date.now()}`;
-    const optimisticAgent: Agent = {
-      id: tempId,
-      name: payload.name,
-      target_url: payload.target_url,
-      description: payload.description,
-      status: 'active',
-      created_at: new Date().toISOString(),
-    };
-
-    setAgents((prev) => [optimisticAgent, ...prev]);
-
     try {
       const created = await api.registerAgent(payload);
-      setAgents((prev) => prev.map((a) => (a.id === tempId ? created : a)));
+      setAgents((prev) => [created, ...prev]);
     } catch (err) {
-      setAgents((prev) => prev.filter((a) => a.id !== tempId));
       throw err;
     }
   };

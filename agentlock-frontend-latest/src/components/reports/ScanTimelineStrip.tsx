@@ -8,8 +8,8 @@ import { Clock, ShieldCheck, ShieldAlert, ChevronRight } from 'lucide-react';
 interface ScanTimelineStripProps {
   scans: Scan[];
   findings?: Finding[];
-  selectedScanId?: string | null;
-  onSelectScan?: (scanId: string) => void;
+  selectedScanId?: number | string | null;
+  onSelectScan?: (scanId: number) => void;
 }
 
 export const ScanTimelineStrip: React.FC<ScanTimelineStripProps> = ({
@@ -52,8 +52,8 @@ export const ScanTimelineStrip: React.FC<ScanTimelineStripProps> = ({
       {/* Horizontal Timeline Strip */}
       <div className="relative overflow-x-auto py-2">
         <div className="flex items-center gap-3 min-w-max pb-2">
-          {marks.map((mark, idx) => {
-            const isSelected = selectedScanId === mark.scanId;
+          {marks.map((mark) => {
+            const isSelected = selectedScanId !== null && selectedScanId !== undefined && Number(selectedScanId) === mark.scanId;
             const markColor = getMarkColor(mark.worstSeverity);
 
             return (

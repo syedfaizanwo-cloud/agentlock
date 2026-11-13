@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Scan, Finding } from '../../types/api';
-import { getScanComparison } from '../../lib/chart-data';
-import { GitCompare, ArrowRight, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Scan, Finding, AgentComparisonResponse, ALL_ATTACK_CATEGORIES, ATTACK_CATEGORY_LABELS, AttackCategory } from '../../types/api';
+import { api } from '../../lib/api-client';
+import { GitCompare, ArrowRight, ShieldCheck, ShieldAlert, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 
 interface ScanComparisonViewProps {
   scans: Scan[];
@@ -16,14 +16,50 @@ export const ScanComparisonView: React.FC<ScanComparisonViewProps> = ({
   findings = [],
   onSelectFinding,
 }) => {
-  const completedScans = scans.filter((s) => s.status === 'completed' || s.vulnerabilities_found !== undefined);
+  const completedScans = scans.filter((s) => s.status === 'completed');
 
-  const [scanAId, setScanAId] = useState<string>(
-    completedScans.length > 1 ? completedScans[1].id : completedScans[0]?.id || ''
+  const [scanAId, setScanAId] = useState<number | null>(
+    completedScans.length > 1 ? completedScans[1].id : completedScans[0]?.id || null
   );
-  const [scanBId, setScanBId] = useState<string>(
-    completedScans.length > 0 ? completedScans[0].id : ''
+  const [scanBId, setScanBId] = useState<number | null>(
+    completedScans.length > 0 ? completedScans[0].id : null
   );
+
+  const [backendComparison, setBackendComparison] = useState<AgentComparisonResponse | null>(null);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
+
+  // Synchronize initial selections if scans change
+  useEffect(() => {
+    if (completedScans.length > 0) {
+      if (scanAId === null) setScanAId(completedScans.length > 1 ? completedScans[1].id : completedScans[0].id);
+      if (scanBId === null) setScanBId(completedScans[0].id);
+    }
+  }, [completedScans, scanAId, scanBId]);
+
+  // Fetch comparison from backend
+  useEffect(() => {
+    let isCurrent = true;
+    const fetchComparison = async () => {
+      setIsLoadingComparison(true);
+      try {
+        const res = await api.getAgentComparison(
+          scanAId && scanBId
+            ? { vulnerable_scan_id: scanAId, protected_scan_id: scanBId }
+            : undefined
+        );
+        if (isCurrent) setBackendComparison(res);
+      } catch {
+        // Fall back to client calculation
+      } finally {
+        if (isCurrent) setIsLoadingComparison(false);
+      }
+    };
+
+    fetchComparison();
+    return () => {
+      isCurrent = false;
+    };
+  }, [scanAId, scanBId]);
 
   const scanA = completedScans.find((s) => s.id === scanAId);
   const scanB = completedScans.find((s) => s.id === scanBId);
@@ -31,17 +67,27 @@ export const ScanComparisonView: React.FC<ScanComparisonViewProps> = ({
   if (completedScans.length < 2 || !scanA || !scanB) {
     return (
       <div className="p-5 rounded-xl bg-navy-900 border border-[#1A2E5A] text-center py-6 text-xs font-mono text-cream-muted space-y-1">
-        <div className="font-bold text-cream">Scan Comparison Engine</div>
-        <p>Complete at least two security evaluations to compare differential findings and delta shifts.</p>
+        <div className="font-bold text-cream">Two-Scan Comparative Analysis</div>
+        <p>Complete at least two security evaluations to compare differential findings and posture deltas.</p>
       </div>
     );
   }
 
-  // Find findings matching each scan
+  // Findings matching each scan
   const findingsA = findings.filter((f) => f.scan_id === scanA.id);
   const findingsB = findings.filter((f) => f.scan_id === scanB.id);
 
-  const comparison = getScanComparison(scanA, scanB, findingsA, findingsB);
+  const catSetA = new Set(findingsA.map((f) => f.category));
+  const catSetB = new Set(findingsB.map((f) => f.category));
+
+  const blockedCount = backendComparison?.comparison_summary?.vulnerability_blocked_in_protected ??
+    findingsA.filter((fa) => !catSetB.has(fa.category)).length;
+
+  const persistentCount = backendComparison?.comparison_summary?.vulnerable_in_both ??
+    findingsB.filter((fb) => catSetA.has(fb.category)).length;
+
+  const newCount = backendComparison?.comparison_summary?.vulnerability_only_in_protected ??
+    findingsB.filter((fb) => !catSetA.has(fb.category)).length;
 
   return (
     <div className="p-5 rounded-xl bg-navy-900 border border-[#1A2E5A] space-y-6">
@@ -55,20 +101,20 @@ export const ScanComparisonView: React.FC<ScanComparisonViewProps> = ({
             </h3>
           </div>
           <p className="text-xs text-cream-muted mt-0.5 font-sans">
-            Evaluate differential security posture between baseline and follow-up scans
+            Compare adversarial security posture between baseline and hardened evaluation runs
           </p>
         </div>
 
         {/* Dropdowns */}
         <div className="flex items-center gap-2 text-xs font-mono">
           <select
-            value={scanAId}
-            onChange={(e) => setScanAId(e.target.value)}
+            value={scanAId ?? ''}
+            onChange={(e) => setScanAId(Number(e.target.value))}
             className="p-1.5 rounded-lg bg-navy-950 border border-[#1A2E5A] text-cream"
           >
-            {completedScans.map((s, idx) => (
+            {completedScans.map((s) => (
               <option key={s.id} value={s.id}>
-                Baseline: {s.agent_name || s.agent_id} ({new Date(s.started_at).toLocaleDateString()})
+                Baseline: Scan #{s.id} ({s.agent_id ? `Agent #${s.agent_id}` : 'Mock'})
               </option>
             ))}
           </select>
@@ -76,111 +122,134 @@ export const ScanComparisonView: React.FC<ScanComparisonViewProps> = ({
           <ArrowRight className="w-3.5 h-3.5 text-cream-muted" />
 
           <select
-            value={scanBId}
-            onChange={(e) => setScanBId(e.target.value)}
+            value={scanBId ?? ''}
+            onChange={(e) => setScanBId(Number(e.target.value))}
             className="p-1.5 rounded-lg bg-navy-950 border border-[#1A2E5A] text-cream"
           >
-            {completedScans.map((s, idx) => (
+            {completedScans.map((s) => (
               <option key={s.id} value={s.id}>
-                Target: {s.agent_name || s.agent_id} ({new Date(s.started_at).toLocaleDateString()})
+                Target: Scan #{s.id} ({s.agent_id ? `Agent #${s.agent_id}` : 'Mock'})
               </option>
             ))}
           </select>
         </div>
       </div>
 
-      {/* Metric Tiles: New vs Resolved vs Unchanged */}
+      {/* Metric Tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-4 rounded-lg bg-navy-950 border border-severity-critical/30 space-y-1">
-          <div className="text-[11px] font-mono text-severity-critical uppercase">
-            New Vulnerabilities
+        <div className="p-4 rounded-lg bg-navy-950 border border-severity-low/30 space-y-1">
+          <div className="text-[11px] font-mono text-severity-low uppercase">
+            Attacks Mitigated
           </div>
-          <div className="text-2xl font-mono font-bold text-severity-critical">
-            +{comparison.newFindings.length}
+          <div className="text-2xl font-mono font-bold text-severity-low">
+            +{blockedCount}
           </div>
           <div className="text-[10px] font-mono text-cream-muted">
-            Introduced since baseline scan
+            Vulnerabilities blocked in hardened configuration
           </div>
         </div>
 
-        <div className="p-4 rounded-lg bg-navy-950 border border-severity-low/30 space-y-1">
-          <div className="text-[11px] font-mono text-severity-low uppercase">
-            Resolved Findings
+        <div className="p-4 rounded-lg bg-navy-950 border border-severity-critical/30 space-y-1">
+          <div className="text-[11px] font-mono text-severity-critical uppercase">
+            Persistent Exposures
           </div>
-          <div className="text-2xl font-mono font-bold text-severity-low">
-            -{comparison.resolvedFindings.length}
+          <div className="text-2xl font-mono font-bold text-severity-critical">
+            {persistentCount}
           </div>
           <div className="text-[10px] font-mono text-cream-muted">
-            Successfully remediated flaws
+            Vulnerable across both agent configurations
           </div>
         </div>
 
         <div className="p-4 rounded-lg bg-navy-950 border border-[#1A2E5A] space-y-1">
           <div className="text-[11px] font-mono text-cream-muted uppercase">
-            Persistent Findings
+            New Anomalies
           </div>
           <div className="text-2xl font-mono font-bold text-cream">
-            {comparison.unchangedFindings.length}
+            {newCount}
           </div>
           <div className="text-[10px] font-mono text-cream-muted">
-            Unaddressed across both evaluations
+            Present only in target evaluation
           </div>
         </div>
       </div>
 
-      {/* Delta Bars for each Category */}
+      {/* Eight-Vector Comparison Table */}
       <div className="space-y-3">
         <div className="text-xs font-mono text-cream-muted uppercase tracking-wider">
-          Category Vulnerability Delta Shifts
+          Attack Vector Outcome Differential
         </div>
 
-        <div className="space-y-2">
-          {comparison.categoryDeltas.map((cat) => {
-            const isImprovement = cat.delta < 0;
-            const isDegradation = cat.delta > 0;
+        <div className="overflow-x-auto rounded-lg border border-[#1A2E5A] bg-navy-950">
+          <table className="w-full text-xs font-mono">
+            <thead className="bg-navy-850 text-cream-muted border-b border-[#1A2E5A]">
+              <tr>
+                <th className="py-2.5 px-4 text-left font-semibold">Attack Vector</th>
+                <th className="py-2.5 px-3 text-center font-semibold">Baseline Outcome</th>
+                <th className="py-2.5 px-3 text-center font-semibold">Target Outcome</th>
+                <th className="py-2.5 px-3 text-center font-semibold">Differential Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#1A2E5A]">
+              {ALL_ATTACK_CATEGORIES.map((cat) => {
+                const vulnInA = catSetA.has(cat);
+                const vulnInB = catSetB.has(cat);
 
-            return (
-              <div
-                key={cat.category}
-                className="p-3 rounded-lg bg-navy-950 border border-[#1A2E5A] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono"
-              >
-                <div className="w-44 text-cream font-medium truncate">{cat.label}</div>
+                const backendComp = backendComparison?.attack_comparisons?.find((ac) => ac.category === cat);
 
-                <div className="flex-1 flex items-center gap-3">
-                  <div className="w-16 text-right text-cream-muted">
-                    {cat.countA} &rarr; {cat.countB}
-                  </div>
+                let statusBadge = (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-navy-900 text-cream-muted border border-[#1A2E5A]">
+                    Inconclusive / No delta
+                  </span>
+                );
 
-                  <div className="flex-1 h-2 rounded-full bg-navy-900 border border-[#1A2E5A] overflow-hidden flex">
-                    {isDegradation && (
-                      <div
-                        className="bg-severity-critical h-full rounded-full"
-                        style={{ width: `${Math.min(100, Math.abs(cat.delta) * 20)}%` }}
-                      />
-                    )}
-                    {isImprovement && (
-                      <div
-                        className="bg-severity-low h-full rounded-full"
-                        style={{ width: `${Math.min(100, Math.abs(cat.delta) * 20)}%` }}
-                      />
-                    )}
-                  </div>
-                </div>
+                if (backendComp?.outcome === 'vulnerability_blocked_in_protected' || (vulnInA && !vulnInB)) {
+                  statusBadge = (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-severity-low/15 text-severity-low border border-severity-low/30">
+                      <ShieldCheck className="w-3 h-3" /> Mitigated in Target
+                    </span>
+                  );
+                } else if (backendComp?.outcome === 'vulnerable_in_both' || (vulnInA && vulnInB)) {
+                  statusBadge = (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-severity-critical/15 text-severity-critical border border-severity-critical/30">
+                      <ShieldAlert className="w-3 h-3" /> Vulnerable in Both
+                    </span>
+                  );
+                } else if (!vulnInA && !vulnInB) {
+                  statusBadge = (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-navy-900 text-severity-low border border-[#1A2E5A]">
+                      <CheckCircle2 className="w-3 h-3" /> Clean in Both
+                    </span>
+                  );
+                }
 
-                <div
-                  className={`w-16 text-right font-bold ${
-                    isDegradation
-                      ? 'text-severity-critical'
-                      : isImprovement
-                      ? 'text-severity-low'
-                      : 'text-cream-muted'
-                  }`}
-                >
-                  {cat.delta > 0 ? `+${cat.delta}` : cat.delta}
-                </div>
-              </div>
-            );
-          })}
+                return (
+                  <tr key={cat} className="hover:bg-navy-850/50 transition-colors">
+                    <td className="py-3 px-4 text-cream font-medium">
+                      {ATTACK_CATEGORY_LABELS[cat] || cat}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      {vulnInA ? (
+                        <span className="text-severity-critical font-bold">VULNERABLE</span>
+                      ) : (
+                        <span className="text-severity-low font-bold">BLOCKED / SECURE</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      {vulnInB ? (
+                        <span className="text-severity-critical font-bold">VULNERABLE</span>
+                      ) : (
+                        <span className="text-severity-low font-bold">BLOCKED / SECURE</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      {statusBadge}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

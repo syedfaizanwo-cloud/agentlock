@@ -47,8 +47,8 @@ export const ScanReportModal: React.FC<ScanReportModalProps> = ({
   const highCount = severityCounts.slices.find((s) => s.key === 'high')?.count || 0;
 
   const executiveSummary =
-    `AgentLock completed automated adversarial security testing against agent "${scan.agent_name || scan.agent_id}". ` +
-    `A total of ${findings.length} confirmed vulnerabilities were identified across ${scan.categories.length} evaluated attack categories. ` +
+    `AgentLock completed automated adversarial security testing against agent "${scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`}". ` +
+    `A total of ${findings.length} confirmed vulnerabilities were identified across ${(scan.attack_categories || []).length} evaluated attack categories. ` +
     `The evaluation revealed ${criticalCount} critical-severity exploits and ${highCount} high-severity findings requiring immediate intervention. ` +
     `Immediate remediation is recommended prior to exposing this agentic workflow to untrusted external inputs.`;
 
@@ -64,8 +64,9 @@ export const ScanReportModal: React.FC<ScanReportModalProps> = ({
     try {
       let blob: Blob;
       try {
-        // Try backend PDF streaming endpoint first
-        blob = await api.downloadReportPdf(scan.id);
+        // Try two-step backend PDF workflow
+        const report = await api.generateReport(scan.id);
+        blob = await api.downloadReportPdf(report.id);
       } catch {
         // Fall back to client-side vector jsPDF generation
         blob = await generateClientSidePdfReport({
@@ -78,8 +79,8 @@ export const ScanReportModal: React.FC<ScanReportModalProps> = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const safeAgentName = (scan.agent_name || scan.agent_id).toLowerCase().replace(/[^a-z0-9]/g, '-');
-      a.download = `agentlock-report-${safeAgentName}-${scan.id.slice(0, 8)}.pdf`;
+      const safeAgentName = scan.agent_id ? `agent-${scan.agent_id}` : 'agentlock';
+      a.download = `agentlock-report-${safeAgentName}-scan-${scan.id}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -101,7 +102,7 @@ export const ScanReportModal: React.FC<ScanReportModalProps> = ({
               Audit Dossier
             </div>
             <h3 className="text-lg font-bold font-sans text-cream">
-              Security Evaluation Report: {scan.agent_name || scan.agent_id}
+              Security Evaluation Report: {scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`}
             </h3>
           </div>
 
@@ -146,16 +147,16 @@ export const ScanReportModal: React.FC<ScanReportModalProps> = ({
           <div className="p-5 rounded-xl bg-navy-950 border border-[#1A2E5A] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
             <div>
               <div className="text-cream-muted">Target Agent</div>
-              <div className="font-bold text-cream mt-0.5">{scan.agent_name || scan.agent_id}</div>
+              <div className="font-bold text-cream mt-0.5">{scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`}</div>
             </div>
             <div>
               <div className="text-cream-muted">Scan ID</div>
-              <div className="font-bold text-coral mt-0.5 truncate">{scan.id}</div>
+              <div className="font-bold text-coral mt-0.5 truncate">#{scan.id}</div>
             </div>
             <div>
               <div className="text-cream-muted">Execution Date</div>
               <div className="font-bold text-cream mt-0.5">
-                {new Date(scan.started_at).toLocaleDateString()}
+                {new Date(scan.started_at || scan.created_at).toLocaleDateString()}
               </div>
             </div>
             <div>
@@ -190,7 +191,7 @@ export const ScanReportModal: React.FC<ScanReportModalProps> = ({
               </div>
               <div className="p-3 rounded-lg bg-navy-950 border border-severity-low/30 text-center">
                 <div className="text-[10px] font-mono text-severity-low">VECTORS TESTED</div>
-                <div className="text-xl font-mono font-bold text-severity-low mt-1">{scan.categories.length}</div>
+                <div className="text-xl font-mono font-bold text-severity-low mt-1">{(scan.attack_categories || []).length}</div>
               </div>
             </div>
           </div>

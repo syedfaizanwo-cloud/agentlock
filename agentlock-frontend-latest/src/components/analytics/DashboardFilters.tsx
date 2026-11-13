@@ -83,7 +83,7 @@ export const DashboardFilters: React.FC<DashboardFiltersProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto">
             {filters.agentId !== 'ALL' && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-coral/10 text-coral border border-coral/30">
-                Agent: {agents.find((a) => a.id === filters.agentId)?.name || filters.agentId}
+                Agent: {agents.find((a) => String(a.id) === String(filters.agentId))?.name || filters.agentId}
                 <button
                   onClick={() => onChange({ ...filters, agentId: 'ALL' })}
                   className="hover:text-cream"

@@ -243,6 +243,10 @@ export default function WaveGridBackground({
     if (prefersReducedMotion) {
       renderer.render(scene, camera);
       setIsReady(true);
+      if (typeof window !== 'undefined') {
+        (window as any).__AGENTLOCK_WAVE_READY__ = true;
+        window.dispatchEvent(new CustomEvent('agentlock-wave-ready'));
+      }
       return () => {
         window.removeEventListener('mousemove', handlePointerMove);
         window.removeEventListener('mouseleave', handlePointerLeave);
@@ -349,6 +353,10 @@ export default function WaveGridBackground({
       if (!hasRenderedFirstFrame) {
         hasRenderedFirstFrame = true;
         setIsReady(true);
+        if (typeof window !== 'undefined') {
+          (window as any).__AGENTLOCK_WAVE_READY__ = true;
+          window.dispatchEvent(new CustomEvent('agentlock-wave-ready'));
+        }
       }
 
       animFrameId = requestAnimationFrame(tick);
