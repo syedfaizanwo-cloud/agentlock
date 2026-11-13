@@ -1,0 +1,37 @@
+# AgentLock: AI Agent Vulnerability Scanner and Automated Red Teaming
+
+AgentLock is a security evaluation platform for autonomous AI agents, tool-augmented LLMs, and multi-agent workflows. It tests target endpoints against prompt injection, data leakage, tool abuse, and memory poisoning.
+
+## Application Routes
+- / : Main dashboard with platform overview, telemetry metrics, and scan launcher.
+- /agents : Target agent inventory and HTTP endpoint registration.
+- /scans : Scan configuration and execution runner.
+- /scans/[id] : Granular scan results, attack payloads, evidence, and remediation advice.
+- /reports : Audit reports and executive PDF downloads.
+- /faq : Security methodology, test categories, and common questions.
+
+## Core Capabilities
+- Prompt Injection Testing: Direct and indirect instruction override evaluation, jailbreak delimiter tests, and multi-turn persona hijacking.
+- Data Leakage Detection: System prompt extraction probes, API credential discovery tests, sensitive file exfiltration, and PII leakage verification.
+- Tool Abuse: Parameter tampering evaluations, unauthorized function invocation checks, and command execution boundaries.
+- Memory Poisoning: Cross-session context manipulation and persistent state contamination.
+- Audit Reports: Downloadable executive PDF summaries with severity distributions and remediation steps.
+
+## Frontend Technology Stack
+- Next.js 14 App Router
+- React 18 and TypeScript
+- Tailwind CSS
+- Three.js (WaveGridBackground persistent 3D canvas, dynamically imported)
+- Recharts (dynamically imported for below-the-fold charts)
+- Native fetch client with in-memory caching and offline fallback
+
+## REST API Endpoints
+- GET /health : Service health check and latency diagnostics.
+- GET /api/dashboard/stats : Aggregated security telemetry and vulnerability counts.
+- GET /api/agents : Target agent inventory.
+- POST /api/agents : Register new agent endpoint for testing.
+- POST /api/scans : Initiate adversarial security evaluation.
+- GET /api/scans : Scan execution history.
+- GET /api/scans/{id} : Status and progress of a specific scan.
+- GET /api/scans/{id}/results : Findings, attack payloads, evidence, and remediation code.
+- GET /api/scans/{id}/report/pdf : Download executive audit report PDF.
