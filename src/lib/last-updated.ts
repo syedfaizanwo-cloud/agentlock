@@ -4,8 +4,7 @@
  */
 
 export const LAST_UPDATED_ISO =
-  (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_LAST_UPDATED) ||
-  '2026-11-13T12:00:00Z';
+  process.env.NEXT_PUBLIC_LAST_UPDATED || '2026-11-12T06:00:00Z';
 
 export const LAST_UPDATED_FORMATTED = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',

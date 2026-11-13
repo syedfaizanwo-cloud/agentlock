@@ -1,11 +1,6 @@
 import React from 'react';
+import Link from 'next/link';
 import { Shield, ArrowLeft } from 'lucide-react';
-
-const Link = ({ href, children, ...props }: any) => (
-  <a href={href} {...props}>
-    {children}
-  </a>
-);
 
 interface SimplePageHeaderProps {
   currentLabel?: string;

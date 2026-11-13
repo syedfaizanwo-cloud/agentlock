@@ -1,14 +1,9 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Shield, Mail, Phone, MapPin, Clock, Cookie } from 'lucide-react';
 import { LAST_UPDATED_ISO, LAST_UPDATED_FORMATTED } from '../../lib/last-updated';
-
-const Link = ({ href, children, ...props }: any) => (
-  <a href={href} {...props}>
-    {children}
-  </a>
-);
 
 interface SiteFooterProps {
   onOpenCookieSettings?: () => void;

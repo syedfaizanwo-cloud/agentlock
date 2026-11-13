@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { trackEvent } from '../analytics/AnalyticsManager';
 import { getStoredAttribution, AttributionData } from '../../lib/utm';
 import { CopyButton } from '../ui/CopyButton';
@@ -35,6 +36,8 @@ interface FormErrors {
 }
 
 export const ContactSection: React.FC = () => {
+  const router = useRouter();
+
   const [form, setForm] = useState<FormState>({
     name: '',
     email: '',

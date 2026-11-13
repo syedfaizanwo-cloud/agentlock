@@ -1,16 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Cookie, Check, X, Shield, Settings } from 'lucide-react';
 import { onConsentGranted } from '../../lib/utm';
 
-const Link = ({ href, children, ...props }: any) => (
-  <a href={href} {...props}>
-    {children}
-  </a>
-);
-
-const GA_ID = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GA_ID) || 'G-XXXXXXXXXX';
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || 'G-XXXXXXXXXX';
 const CONSENT_KEY = 'agentlock_consent';
 
 export interface ConsentPreferences {

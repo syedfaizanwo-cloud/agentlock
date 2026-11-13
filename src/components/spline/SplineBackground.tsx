@@ -140,7 +140,7 @@ export const SplineBackground: React.FC<SplineBackgroundProps> = memo(
               title="AgentLock 2.0 3D Spline Interactive Mesh"
               loading="lazy"
               // @ts-ignore
-              fetchPriority="low"
+              fetchpriority="low"
               onLoad={() => setIsLoaded(true)}
               className="w-full h-full border-0 pointer-events-auto block"
               style={{
