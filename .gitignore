@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables
+.env
+backend/.env
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated reports
+backend/reports/
+
+# Local development safety backups
+/AgentLock_*_backup_*/
