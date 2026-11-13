@@ -101,8 +101,8 @@ export const FAQSection: React.FC = () => {
               id={item.id}
               className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
                 isOpen
-                  ? 'bg-[#0A1633] border-[#FF6F59]/40 shadow-lg'
-                  : 'bg-[#060D1F] border-[#12234A] hover:border-[#12234A]/80'
+                  ? 'glass-panel border-[#FF6F59]/50 shadow-[0_0_24px_rgba(255,111,89,0.15)]'
+                  : 'glass-card hover:border-white/20'
               }`}
             >
               <button

@@ -40,13 +40,13 @@ export const ScannerHero: React.FC<ScannerHeroProps> = ({
         {/* Left Column: Heading & Primary Actions */}
         <div className="lg:col-span-7 space-y-6">
           {/* Eyebrow Pill */}
-          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#0A1633] border border-[#12234A] shadow-[inset_2px_2px_4px_#030714]">
+          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full glass-pill text-[#C8C0AC]">
             <span
               className={`w-2 h-2 rounded-full ${
-                backendOnline ? 'bg-[#34D399]' : 'bg-[#FF6F59]'
+                backendOnline ? 'bg-[#34D399] shadow-[0_0_8px_#34D399]' : 'bg-[#FF6F59] shadow-[0_0_8px_#FF6F59]'
               }`}
             />
-            <span className="text-xs font-mono text-[#C8C0AC] tracking-tight">
+            <span className="text-xs font-mono tracking-tight">
               AGENTLOCK // {backendOnline ? `BACKEND CONNECTED (${latencyMs}ms)` : 'STANDALONE SECURE RUNTIME'}
             </span>
           </div>
@@ -74,7 +74,7 @@ export const ScannerHero: React.FC<ScannerHeroProps> = ({
 
             <button
               onClick={onHowItWorks}
-              className="px-6 py-3.5 rounded-xl bg-[#0A1633] text-[#F5EDDC] font-semibold text-sm border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] hover:border-[#FF6F59] active:scale-[0.98] transition-all"
+              className="px-6 py-3.5 rounded-xl glass-card text-[#F5EDDC] font-semibold text-sm hover:border-[#FF6F59] active:scale-[0.98] transition-all"
             >
               How It Works
             </button>
@@ -83,27 +83,28 @@ export const ScannerHero: React.FC<ScannerHeroProps> = ({
 
         {/* Right Column: Architectural Terminal Preview */}
         <div className="lg:col-span-5">
-          <div className="rounded-2xl bg-[#060D1F] border border-[#12234A] shadow-[8px_8px_16px_#030714,-8px_-8px_16px_#12234A] p-5 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#12234A]">
+          <div className="rounded-2xl glass-panel p-5 space-y-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-44 h-44 bg-[#FF6F59]/[0.02] rounded-full blur-3xl pointer-events-none" />
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] relative z-10">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#E11D48]" />
-                <span className="w-3 h-3 rounded-full bg-[#FACC15]" />
-                <span className="w-3 h-3 rounded-full bg-[#34D399]" />
+                <span className="w-3 h-3 rounded-full bg-[#FF3158]" />
+                <span className="w-3 h-3 rounded-full bg-[#FFD43B]" />
+                <span className="w-3 h-3 rounded-full bg-[#32D6A0]" />
                 <span className="text-xs font-mono text-[#C8C0AC] ml-2">adversarial-probe.sh</span>
               </div>
-              <span className="text-[11px] font-mono text-[#34D399]">TLS 1.3 / ACTIVE</span>
+              <span className="text-[11px] font-mono text-[#32D6A0]">TLS 1.3 / ACTIVE</span>
             </div>
 
-            <div className="space-y-2 text-xs font-mono text-[#C8C0AC] leading-relaxed">
+            <div className="space-y-2 text-xs font-mono text-[#C8C0AC] leading-relaxed relative z-10">
               <div className="text-[#FF6F59]">$ agentlock eval --target https://agent.internal/v1</div>
               <div className="text-[#C8C0AC]/80">[*] Verifying authorized testing scope... OK</div>
               <div className="text-[#C8C0AC]/80">[*] Testing prompt injection delimiter evasion...</div>
-              <div className="text-[#E11D48]">[!] Vulnerability detected: System prompt exfiltration</div>
+              <div className="text-[#FF3158]">[!] Vulnerability detected: System prompt exfiltration</div>
               <div className="text-[#C8C0AC]/80">[*] Generating cryptographically verifiable dossier...</div>
-              <div className="text-[#34D399]">[+] Evaluation complete: 4 test suites finished</div>
+              <div className="text-[#32D6A0]">[+] Evaluation complete: 4 test suites finished</div>
             </div>
 
-            <div className="pt-2 border-t border-[#12234A] flex items-center justify-between text-[11px] font-mono text-[#C8C0AC]/70">
+            <div className="pt-2 border-t border-white/[0.08] flex items-center justify-between text-[11px] font-mono text-[#C8C0AC]/70 relative z-10">
               <span>Framework: Red Team v2.4</span>
               <span>MITRE ATLAS Compatible</span>
             </div>
@@ -122,7 +123,7 @@ export const ScannerHero: React.FC<ScannerHeroProps> = ({
             return (
               <div
                 key={st.num}
-                className="p-4 rounded-xl bg-[#0A1633] border border-[#12234A] shadow-[3px_3px_6px_#030714,-3px_-3px_6px_#12234A] space-y-2 relative group hover:border-[#FF6F59] transition-all"
+                className="p-4 rounded-xl glass-card glass-card-hover space-y-2 relative group transition-all"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-[#FF6F59] font-bold">{st.num}</span>

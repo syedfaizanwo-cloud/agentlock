@@ -81,7 +81,7 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search scans by agent or ID..."
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#060D1F] border border-[#12234A] text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/50 focus:outline-none focus:ring-2 focus:ring-[#FF6F59]"
+            className="w-full pl-9 pr-4 py-2 rounded-xl glass-input text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/50 focus:outline-none"
           />
         </div>
 
@@ -89,7 +89,7 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-[#060D1F] border border-[#12234A] text-xs font-mono text-[#F5EDDC] focus:outline-none focus:ring-2 focus:ring-[#FF6F59]"
+            className="px-3 py-2 rounded-xl glass-input text-xs font-mono text-[#F5EDDC] focus:outline-none"
           >
             <option value="ALL">All Statuses</option>
             <option value="completed">Completed</option>
@@ -102,7 +102,7 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
               onClick={onRefresh}
               disabled={isLoading}
               aria-label="Refresh scan history"
-              className="p-2 rounded-xl bg-[#0A1633] border border-[#12234A] text-[#C8C0AC] hover:text-[#F5EDDC] hover:border-[#FF6F59] transition-colors"
+              className="p-2 rounded-xl glass-pill hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-colors"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -110,10 +110,10 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
         </div>
       </div>
 
-      {/* Flat Table (No per-row neumorphic shadows per spec) */}
-      <div className="overflow-x-auto rounded-2xl border border-[#12234A] bg-[#0A1633]">
+      {/* Flat Glass Table */}
+      <div className="overflow-x-auto rounded-2xl glass-panel">
         <table className="w-full text-left text-xs font-mono">
-          <thead className="bg-[#060D1F] border-b border-[#12234A] text-[#C8C0AC] uppercase tracking-wider">
+          <thead className="bg-[#060D1F]/70 border-b border-white/10 text-[#C8C0AC] uppercase tracking-wider">
             <tr>
               <th className="py-3 px-4">Scan ID</th>
               <th className="py-3 px-4">Target Agent</th>
@@ -124,7 +124,7 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#12234A] text-[#F5EDDC]">
+          <tbody className="divide-y divide-white/5 text-[#F5EDDC]">
             {filteredScans.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-8 text-center text-[#C8C0AC]/70">
@@ -133,7 +133,7 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
               </tr>
             ) : (
               filteredScans.map((scan) => (
-                <tr key={scan.id} className="hover:bg-[#12234A]/40 transition-colors">
+                <tr key={scan.id} className="hover:bg-white/[0.03] transition-colors">
                   <td className="py-3 px-4 font-bold text-[#FF6F59]">
                     {scan.id.slice(0, 8)}...
                   </td>
@@ -162,7 +162,7 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
                     {onSelectScan && (
                       <button
                         onClick={() => onSelectScan(scan.id)}
-                        className="p-1.5 rounded-lg bg-[#060D1F] border border-[#12234A] hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-colors"
+                        className="p-1.5 rounded-lg glass-pill hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-all"
                         title="View Results"
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -171,7 +171,7 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
                     {onDownloadReport && scan.status === 'completed' && (
                       <button
                         onClick={() => onDownloadReport(scan.id)}
-                        className="p-1.5 rounded-lg bg-[#060D1F] border border-[#12234A] hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-colors"
+                        className="p-1.5 rounded-lg glass-pill hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-all"
                         title="Download PDF"
                       >
                         <Download className="w-3.5 h-3.5" />

@@ -46,7 +46,7 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
 
   if (!scans || scans.length === 0) {
     return (
-      <div className="p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] text-center space-y-2">
+      <div className="p-8 rounded-2xl glass-panel text-center space-y-2">
         <div className="text-xs font-mono text-[#C8C0AC]">No recent scan activity</div>
         <p className="text-xs text-[#C8C0AC]/70">
           Initiate an adversarial scan to generate execution history.
@@ -61,7 +61,7 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
         <div
           key={scan.id}
           onClick={() => onSelectScan?.(scan.id)}
-          className="p-4 rounded-xl bg-[#0A1633] border border-[#12234A] hover:border-[#FF6F59] transition-all cursor-pointer flex items-center justify-between gap-4"
+          className="p-4 rounded-xl glass-card glass-card-hover transition-all cursor-pointer flex items-center justify-between gap-4"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -77,7 +77,7 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
 
           <div className="flex items-center gap-3">
             {typeof scan.vulnerabilities_found === 'number' && (
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-[#060D1F] border border-[#12234A] text-[#FF6F59]">
+              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-[#FF6F59]/10 border border-[#FF6F59]/30 text-[#FF6F59]">
                 {scan.vulnerabilities_found} findings
               </span>
             )}

@@ -165,11 +165,14 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
   return (
     <div className="space-y-8 relative">
       {/* Scanner Control & Staging Grid */}
-      <div className={`p-6 sm:p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[8px_8px_16px_#030714,-8px_-8px_16px_#12234A] space-y-6 transition-all duration-300 ${
-        isScanning ? 'ring-2 ring-[#FF6F59]/50' : ''
+      <div className={`p-6 sm:p-8 rounded-2xl glass-panel space-y-6 transition-all duration-300 relative overflow-hidden ${
+        isScanning ? 'ring-2 ring-[#FF6F59]/50 shadow-[0_0_30px_rgba(255,111,89,0.2)]' : ''
       }`}>
+        {/* Soft Ambient Radial Backlight */}
+        <div className="absolute top-0 right-0 w-80 h-40 bg-[#FF6F59]/[0.03] rounded-full blur-3xl pointer-events-none" />
+
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#12234A]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08] relative z-10">
           <div className="space-y-1">
             <h3 className="text-base font-bold font-sans text-[#F5EDDC] flex items-center gap-2">
               <Zap className="w-4 h-4 text-[#FF6F59]" />
@@ -181,7 +184,7 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
           </div>
 
           {isScanning && (
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#FF6F59]/15 text-[#FF6F59] border border-[#FF6F59]/40">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#FF6F59]/15 text-[#FF6F59] border border-[#FF6F59]/40 shadow-[0_0_12px_rgba(255,111,89,0.25)]">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               <span>TEST RUNNING</span>
             </div>
@@ -189,12 +192,12 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
         </div>
 
         {/* Step 1: Select Target Agent */}
-        <div className="space-y-3">
+        <div className="space-y-3 relative z-10">
           <label className="text-xs font-mono uppercase tracking-wider text-[#C8C0AC]">
             1. Select Target Agent <span className="text-[#FF6F59]">*</span>
           </label>
           {agents.length === 0 ? (
-            <div className="p-4 rounded-xl bg-[#060D1F] border border-[#12234A] text-xs font-mono text-[#C8C0AC] flex items-center justify-between">
+            <div className="p-4 rounded-xl glass-well text-xs font-mono text-[#C8C0AC] flex items-center justify-between">
               <span>No agents registered yet. Please register an agent first.</span>
               <a href="#agents" className="text-[#FF6F59] hover:underline font-bold">
                 Go to Agent Management &rarr;
@@ -212,8 +215,8 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
                     onClick={() => onSelectAgent(agent)}
                     className={`p-3.5 rounded-xl border text-left transition-all ${
                       isSelected
-                        ? 'bg-[#12234A] border-[#FF6F59] shadow-[inset_2px_2px_4px_#030714]'
-                        : 'bg-[#060D1F] border-[#12234A] hover:border-[#12234A]/80'
+                        ? 'bg-[#FF6F59]/15 border-[#FF6F59] shadow-[0_0_16px_rgba(255,111,89,0.3)] ring-1 ring-[#FF6F59]'
+                        : 'glass-card glass-card-hover border-white/10'
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -235,7 +238,7 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
         </div>
 
         {/* Step 2: Select Attack Categories */}
-        <div className="space-y-3">
+        <div className="space-y-3 relative z-10">
           <label className="text-xs font-mono uppercase tracking-wider text-[#C8C0AC]">
             2. Adversarial Test Categories ({selectedCategories.length}/4 selected)
           </label>
@@ -249,8 +252,8 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
                   onClick={() => !isScanning && toggleCategory(cat.id)}
                   className={`p-4 rounded-xl border cursor-pointer select-none transition-all flex items-start gap-3 ${
                     isChecked
-                      ? 'bg-[#060D1F] border-[#FF6F59]/70 shadow-[inset_2px_2px_4px_#030714]'
-                      : 'bg-[#060D1F] border-[#12234A] opacity-60 hover:opacity-100'
+                      ? 'bg-[#FF6F59]/10 border-[#FF6F59]/70 shadow-[0_0_14px_rgba(255,111,89,0.2)]'
+                      : 'glass-card glass-card-hover border-white/10 opacity-70 hover:opacity-100'
                   }`}
                 >
                   <input
@@ -258,7 +261,7 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
                     checked={isChecked}
                     disabled={isScanning}
                     onChange={() => {}}
-                    className="mt-1 w-4 h-4 rounded border-[#12234A] bg-[#0A1633] text-[#FF6F59] focus:ring-0"
+                    className="mt-1 w-4 h-4 rounded border-white/20 bg-[#060D1F] text-[#FF6F59] focus:ring-0"
                   />
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -336,8 +339,8 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
       {/* Live Scan Staging Progress Panel */}
       {activeScan && (
         <div
-          className={`p-6 sm:p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[8px_8px_16px_#030714,-8px_-8px_16px_#12234A] space-y-6 relative transition-all ${
-            justCompleted ? 'ring-2 ring-[#34D399]' : ''
+          className={`p-6 sm:p-8 rounded-2xl glass-panel space-y-6 relative transition-all overflow-hidden ${
+            justCompleted ? 'ring-2 ring-[#34D399] shadow-[0_0_24px_rgba(52,211,153,0.3)]' : ''
           }`}
         >
           {/* One coral completion ring on scan completion per spec */}
@@ -350,7 +353,7 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
             />
           )}
 
-          <div className="flex items-center justify-between pb-3 border-b border-[#12234A]">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] relative z-10">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono uppercase tracking-wider text-[#C8C0AC]">
@@ -367,15 +370,15 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
 
             <div className="flex items-center gap-2">
               {activeScan.status === 'completed' ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#34D399]/15 text-[#34D399] border border-[#34D399]/40">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#34D399]/15 text-[#34D399] border border-[#34D399]/40 shadow-[0_0_12px_rgba(52,211,153,0.2)]">
                   <CheckCircle2 className="w-3.5 h-3.5" /> SCAN COMPLETE
                 </span>
               ) : activeScan.status === 'failed' ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#E11D48]/15 text-[#E11D48] border border-[#E11D48]/40">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#FF3158]/15 text-[#FF3158] border border-[#FF3158]/40 shadow-[0_0_12px_rgba(255,49,88,0.2)]">
                   <ShieldAlert className="w-3.5 h-3.5" /> FAILED
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#FF6F59]/15 text-[#FF6F59] border border-[#FF6F59]/40">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#FF6F59]/15 text-[#FF6F59] border border-[#FF6F59]/40 shadow-[0_0_12px_rgba(255,111,89,0.2)]">
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> LIVE EVALUATION
                 </span>
               )}
@@ -383,7 +386,7 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
           </div>
 
           {/* Progress Bar / Indeterminate State */}
-          <div className="space-y-2">
+          <div className="space-y-2 relative z-10">
             <div className="flex items-center justify-between text-xs font-mono">
               <span className="text-[#C8C0AC]">
                 {activeScan.status_message || (isScanning ? 'Executing test suites...' : 'Scan finished')}
@@ -397,24 +400,24 @@ export const SecurityScanSection: React.FC<SecurityScanSectionProps> = ({
               </span>
             </div>
 
-            <div className="w-full h-2.5 rounded-full bg-[#060D1F] border border-[#12234A] overflow-hidden relative">
+            <div className="w-full h-2.5 rounded-full bg-[#060D1F]/80 border border-white/10 overflow-hidden relative shadow-[inset_0_1px_3px_rgba(3,7,20,0.8)]">
               {typeof activeScan.progress === 'number' ? (
                 <div
-                  className="h-full bg-[#FF6F59] transition-all duration-300 rounded-full"
+                  className="h-full bg-gradient-to-r from-[#FF6F59] to-[#FFA494] transition-all duration-300 rounded-full shadow-[0_0_10px_#FF6F59]"
                   style={{ width: `${Math.min(activeScan.progress, 100)}%` }}
                 />
               ) : isScanning ? (
                 /* Indeterminate pulse indicator */
-                <div className="h-full w-1/3 bg-[#FF6F59] rounded-full animate-pulse" />
+                <div className="h-full w-1/3 bg-[#FF6F59] rounded-full animate-pulse shadow-[0_0_10px_#FF6F59]" />
               ) : (
-                <div className="h-full w-full bg-[#34D399] rounded-full" />
+                <div className="h-full w-full bg-[#34D399] rounded-full shadow-[0_0_10px_#34D399]" />
               )}
             </div>
           </div>
 
           {/* Footer Action when Complete */}
           {activeScan.status === 'completed' && (
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#12234A]">
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/[0.08] relative z-10">
               <div className="text-xs font-mono text-[#C8C0AC]">
                 Found{' '}
                 <strong className="text-[#FF6F59]">

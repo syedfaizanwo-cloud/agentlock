@@ -1,124 +1,218 @@
 'use client';
 
-import React from 'react';
-import { ThreatDistributionChart } from '../dashboard/ThreatDistributionChart';
-import { AgentRiskBarChart } from '../dashboard/AgentRiskBarChart';
-import { ThreatTimelineChart } from '../dashboard/ThreatTimelineChart';
+import React, { useState, useMemo } from 'react';
+import { SeverityDonut } from '../dashboard/SeverityDonut';
+import { AttackVectorChart } from '../dashboard/AttackVectorChart';
+import { VulnerabilityVelocityChart } from '../dashboard/VulnerabilityVelocityChart';
+import { ExposureHeatmap } from './ExposureHeatmap';
+import { DashboardFilters, FilterState } from './DashboardFilters';
+import { FindingDetailDrawer } from '../threats/FindingDetailDrawer';
 import { LazyViewport } from '../layout/LazyViewport';
-import { DashboardStats, Scan, Agent } from '../../types/api';
-import { ShieldAlert } from 'lucide-react';
+import { DashboardStats, Scan, Agent, Finding, SeverityLevel, AttackCategory } from '../../types/api';
 
 interface AnalyticsSectionProps {
   stats: DashboardStats | null;
   scans: Scan[];
   agents: Agent[];
+  findings?: Finding[];
+  onSelectAgentForScan?: (agent: Agent) => void;
 }
 
 export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
   stats,
   scans = [],
   agents = [],
+  findings = [],
+  onSelectAgentForScan,
 }) => {
-  // Format Category Bar items
-  const categoryData = stats?.category_breakdown
-    ? [
+  // Global filter state for analytics exploration
+  const [filters, setFilters] = useState<FilterState>({
+    agentId: 'ALL',
+    category: 'ALL',
+    severity: 'ALL',
+  });
+
+  // Drawer state for interactive deep dive
+  const [drawerFinding, setDrawerFinding] = useState<Finding | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Filtered findings dataset
+  const filteredFindings = useMemo(() => {
+    return findings.filter((f) => {
+      if (filters.agentId !== 'ALL' && f.agent_id !== filters.agentId) return false;
+      if (filters.category !== 'ALL' && f.category !== filters.category) return false;
+      if (filters.severity !== 'ALL' && f.severity !== filters.severity) return false;
+      return true;
+    });
+  }, [findings, filters]);
+
+  // Compute dynamic category breakdown based on filtered findings or stats
+  const categoryData = useMemo(() => {
+    if (findings.length > 0) {
+      const counts: Record<string, number> = {
+        'Prompt Injection': 0,
+        'Data Leakage': 0,
+        'Tool Abuse': 0,
+        'Memory Poisoning': 0,
+      };
+      filteredFindings.forEach((f) => {
+        if (f.category === 'prompt_injection') counts['Prompt Injection']++;
+        if (f.category === 'data_leakage') counts['Data Leakage']++;
+        if (f.category === 'tool_abuse') counts['Tool Abuse']++;
+        if (f.category === 'memory_poisoning') counts['Memory Poisoning']++;
+      });
+      return Object.entries(counts).map(([category, count]) => ({ category, count }));
+    }
+
+    if (stats?.category_breakdown) {
+      return [
         { category: 'Prompt Injection', count: stats.category_breakdown.prompt_injection },
         { category: 'Data Leakage', count: stats.category_breakdown.data_leakage },
         { category: 'Tool Abuse', count: stats.category_breakdown.tool_abuse },
         { category: 'Memory Poisoning', count: stats.category_breakdown.memory_poisoning },
-      ]
-    : [];
+      ];
+    }
+    return [];
+  }, [findings, filteredFindings, stats]);
+
+  // Compute dynamic severity breakdown based on filtered findings or stats
+  const severityData = useMemo(() => {
+    if (findings.length > 0) {
+      const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+      filteredFindings.forEach((f) => {
+        if (counts[f.severity] !== undefined) counts[f.severity]++;
+      });
+      return counts;
+    }
+    return stats?.severity_breakdown || {};
+  }, [findings, filteredFindings, stats]);
 
   // Format Timeline points
-  const timelineData = scans.map((s, idx) => ({
-    scan: `Scan #${idx + 1}`,
-    findings: s.vulnerabilities_found || 0,
-    critical: Math.min(s.vulnerabilities_found || 0, 1),
-  }));
+  const timelineData = useMemo(() => {
+    return scans.map((s, idx) => ({
+      scan: `Scan #${idx + 1}`,
+      findings: s.vulnerabilities_found || 0,
+      critical: Math.min(s.vulnerabilities_found || 0, 1),
+    }));
+  }, [scans]);
 
-  const hasData = (stats?.total_scans || 0) > 0 || scans.length > 0;
+  const handleSelectSeverity = (sev: SeverityLevel) => {
+    if (filters.severity === sev) {
+      setFilters((prev) => ({ ...prev, severity: 'ALL' }));
+    } else {
+      setFilters((prev) => ({ ...prev, severity: sev }));
+      // Open the first matching finding in the drawer if available
+      const matching = findings.find((f) => f.severity === sev);
+      if (matching) {
+        setDrawerFinding(matching);
+        setIsDrawerOpen(true);
+      }
+    }
+  };
+
+  const handleSelectCategory = (cat: AttackCategory | string) => {
+    if (filters.category === cat) {
+      setFilters((prev) => ({ ...prev, category: 'ALL' }));
+    } else {
+      setFilters((prev) => ({ ...prev, category: cat as AttackCategory }));
+      // Open first matching finding in the drawer
+      const matching = findings.find((f) => f.category === cat);
+      if (matching) {
+        setDrawerFinding(matching);
+        setIsDrawerOpen(true);
+      }
+    }
+  };
+
+  const handleSelectHeatmapCell = (agent: Agent, category: AttackCategory) => {
+    const matching = findings.find(
+      (f) => f.agent_id === agent.id && f.category === category
+    );
+    if (matching) {
+      setDrawerFinding(matching);
+      setIsDrawerOpen(true);
+    } else {
+      // Set filter to inspect
+      setFilters((prev) => ({
+        ...prev,
+        agentId: agent.id,
+        category,
+      }));
+    }
+  };
+
+  const handleResetFilters = () => {
+    setFilters({
+      agentId: 'ALL',
+      category: 'ALL',
+      severity: 'ALL',
+    });
+  };
 
   return (
-    <div className="space-y-8">
-      {/* 2-Column Grid: Severity Donut + Category Bars */}
+    <div className="space-y-6">
+      {/* 1. Intelligence Filter Toolbar */}
+      <DashboardFilters
+        agents={agents}
+        filters={filters}
+        onChange={setFilters}
+        onReset={handleResetFilters}
+      />
+
+      {/* 2. Primary 2-Column Visualizations: Severity Donut + Attack Vector Bars */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <LazyViewport minHeight={320}>
-          <ThreatDistributionChart data={stats?.severity_breakdown} />
+        <LazyViewport minHeight={340}>
+          <SeverityDonut
+            data={severityData}
+            onSelectSeverity={handleSelectSeverity}
+            selectedSeverity={filters.severity !== 'ALL' ? filters.severity : null}
+          />
         </LazyViewport>
 
-        <LazyViewport minHeight={320}>
-          <AgentRiskBarChart data={categoryData} />
+        <LazyViewport minHeight={340}>
+          <AttackVectorChart
+            data={categoryData}
+            onSelectCategory={handleSelectCategory}
+            selectedCategory={filters.category !== 'ALL' ? filters.category : null}
+          />
         </LazyViewport>
       </div>
 
-      {/* Full-width Timeline Velocity Chart */}
+      {/* 3. Vulnerability Velocity Timeline */}
       <LazyViewport minHeight={340}>
-        <ThreatTimelineChart data={timelineData} />
+        <VulnerabilityVelocityChart
+          data={timelineData}
+          onSelectScanPoint={(pt) => {
+            // Find finding from that scan if possible
+            const f = findings[0];
+            if (f) {
+              setDrawerFinding(f);
+              setIsDrawerOpen(true);
+            }
+          }}
+        />
       </LazyViewport>
 
-      {/* Agent by Category Heatmap */}
-      <div className="p-6 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-[#12234A]">
-          <div>
-            <h3 className="text-sm font-mono font-bold text-[#F5EDDC] uppercase tracking-wide">
-              Agent Adversarial Exposure Heatmap
-            </h3>
-            <p className="text-xs text-[#C8C0AC] mt-0.5 font-sans">
-              Confirmed vulnerability matrix mapped across tested agent inventory
-            </p>
-          </div>
-          <span className="text-xs font-mono text-[#C8C0AC] px-2.5 py-0.5 rounded bg-[#060D1F] border border-[#12234A]">
-            {agents.length} Targets
-          </span>
-        </div>
+      {/* 4. Agent Adversarial Exposure Matrix */}
+      <LazyViewport minHeight={360}>
+        <ExposureHeatmap
+          agents={agents}
+          findings={findings}
+          onSelectAgent={(agent) => {
+            setFilters((prev) => ({ ...prev, agentId: agent.id }));
+            onSelectAgentForScan?.(agent);
+          }}
+          onSelectCell={handleSelectHeatmapCell}
+        />
+      </LazyViewport>
 
-        {agents.length === 0 ? (
-          <div className="py-8 text-center text-xs font-mono text-[#C8C0AC]/70">
-            No agent targets evaluated yet.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-xl border border-[#12234A] bg-[#060D1F]">
-            <table className="w-full text-xs font-mono text-left">
-              <thead className="bg-[#0A1633] text-[#C8C0AC] border-b border-[#12234A]">
-                <tr>
-                  <th className="py-3 px-4">Target Agent</th>
-                  <th className="py-3 px-4 text-center">Prompt Injection</th>
-                  <th className="py-3 px-4 text-center">Data Leakage</th>
-                  <th className="py-3 px-4 text-center">Tool Abuse</th>
-                  <th className="py-3 px-4 text-center">Memory Poisoning</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#12234A] text-[#F5EDDC]">
-                {agents.map((agent) => (
-                  <tr key={agent.id} className="hover:bg-[#12234A]/30">
-                    <td className="py-3 px-4 font-bold">{agent.name}</td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="inline-block px-2.5 py-1 rounded bg-[#FF6F59]/15 text-[#FF6F59] font-bold">
-                        {hasData ? 1 : 0}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="inline-block px-2.5 py-1 rounded bg-[#E11D48]/15 text-[#E11D48] font-bold">
-                        {hasData ? 1 : 0}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="inline-block px-2.5 py-1 rounded bg-[#F59E0B]/15 text-[#F59E0B] font-bold">
-                        {hasData ? 1 : 0}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="inline-block px-2.5 py-1 rounded bg-[#34D399]/15 text-[#34D399] font-bold">
-                        0
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* 5. Slide-over Finding Detail Drawer */}
+      <FindingDetailDrawer
+        finding={drawerFinding}
+        agentName={agents.find((a) => a.id === drawerFinding?.agent_id)?.name}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+      />
     </div>
   );
 };

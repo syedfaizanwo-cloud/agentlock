@@ -52,8 +52,9 @@ export const ReportsSection: React.FC<ReportsSectionProps> = ({
   return (
     <div className="space-y-6">
       {/* Summary Header Card */}
-      <div className="p-6 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
+      <div className="p-6 rounded-2xl glass-panel flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-32 bg-[#FF6F59]/[0.02] rounded-full blur-3xl pointer-events-none" />
+        <div className="space-y-1 relative z-10">
           <div className="text-xs font-mono uppercase tracking-wider text-[#C8C0AC]">
             Audit Dossier Summary
           </div>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TopBar } from '../components/navigation/TopBar';
 import { ScannerHero } from '../components/hero/ScannerHero';
-import { StatCard } from '../components/dashboard/StatCard';
+import { GlassMetricCard } from '../components/dashboard/GlassMetricCard';
 import { Sparkline } from '../components/bento/Sparkline';
 import { RecentActivityFeed } from '../components/dashboard/RecentActivityFeed';
 import { AnalyticsSection } from '../components/analytics/AnalyticsSection';
@@ -218,55 +218,52 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* 4 KPI Tiles */}
+          {/* 4 Premium Glass Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="relative">
-              <StatCard
-                title="Registered Agents"
-                value={isLoadingStats ? '-' : stats?.registered_agents ?? agents.length}
-                subtitle="Target inventory"
-                icon={Bot}
-              />
-              <div className="absolute right-4 bottom-3 pointer-events-none">
-                <Sparkline data={[1, 1, 2, Math.max(agents.length, 2)]} color="#C8C0AC" />
-              </div>
-            </div>
+            <GlassMetricCard
+              title="Registered Agents"
+              value={isLoadingStats ? '-' : stats?.registered_agents ?? agents.length}
+              subtitle="Active target inventory"
+              icon={Bot}
+              targetSectionId="#agents"
+              sparklineData={[1, 1, 2, Math.max(agents.length, 2)]}
+              sparklineColor="#32D6A0"
+              accentColor="#32D6A0"
+            />
 
-            <div className="relative">
-              <StatCard
-                title="Total Scans"
-                value={isLoadingStats ? '-' : stats?.total_scans ?? scans.length}
-                subtitle="Evaluations executed"
-                icon={Activity}
-              />
-              <div className="absolute right-4 bottom-3 pointer-events-none">
-                <Sparkline data={scans.length > 1 ? scans.map((_, i) => i + 1) : [0, scans.length]} color="#FF6F59" />
-              </div>
-            </div>
+            <GlassMetricCard
+              title="Total Scans"
+              value={isLoadingStats ? '-' : stats?.total_scans ?? scans.length}
+              subtitle="Adversarial evaluations"
+              icon={Activity}
+              targetSectionId="#reports"
+              sparklineData={scans.length > 1 ? scans.map((_, i) => i + 1) : [0, scans.length]}
+              sparklineColor="#FF6F59"
+              accentColor="#FF6F59"
+            />
 
-            <div className="relative">
-              <StatCard
-                title="Confirmed Vulns"
-                value={isLoadingStats ? '-' : stats?.confirmed_vulnerabilities ?? 0}
-                subtitle="Verified findings"
-                icon={AlertTriangle}
-              />
-              <div className="absolute right-4 bottom-3 pointer-events-none">
-                <Sparkline data={getFindingTrend().length > 1 ? getFindingTrend() : [0, stats?.confirmed_vulnerabilities || 0]} color="#FACC15" />
-              </div>
-            </div>
+            <GlassMetricCard
+              title="Confirmed Vulns"
+              value={isLoadingStats ? '-' : stats?.confirmed_vulnerabilities ?? 0}
+              subtitle="Verified security flaws"
+              icon={AlertTriangle}
+              targetSectionId="#results"
+              sparklineData={getFindingTrend().length > 1 ? getFindingTrend() : [0, stats?.confirmed_vulnerabilities || 0]}
+              sparklineColor="#FFD43B"
+              accentColor="#FFD43B"
+            />
 
-            <div className="relative">
-              <StatCard
-                title="Critical Findings"
-                value={isLoadingStats ? '-' : stats?.critical_findings ?? 0}
-                subtitle="Immediate action required"
-                icon={ShieldAlert}
-              />
-              <div className="absolute right-4 bottom-3 pointer-events-none">
-                <Sparkline data={[0, stats?.critical_findings || 0]} color="#E11D48" />
-              </div>
-            </div>
+            <GlassMetricCard
+              title="Critical Findings"
+              value={isLoadingStats ? '-' : stats?.critical_findings ?? 0}
+              subtitle="Immediate action required"
+              icon={ShieldAlert}
+              targetSectionId="#results"
+              sparklineData={[0, stats?.critical_findings || 0]}
+              sparklineColor="#FF3158"
+              accentColor="#FF3158"
+              badge="CRITICAL"
+            />
           </div>
 
           {/* Recent Activity Feed */}
@@ -302,7 +299,13 @@ export default function HomePage() {
             </div>
           </div>
 
-          <AnalyticsSection stats={stats} scans={scans} agents={agents} />
+          <AnalyticsSection
+            stats={stats}
+            scans={scans}
+            agents={agents}
+            findings={findings}
+            onSelectAgentForScan={handleSelectAgentForScan}
+          />
         </section>
 
         {/* Section 4: Agents #agents */}
