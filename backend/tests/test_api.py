@@ -58,7 +58,7 @@ def register_agent(client):
         json={
             "name": "Automated Test Agent",
             "description": "Synthetic regression test",
-            "agent_type": "mock",
+            "agent_type": "vulnerable_mock",
         },
     )
 
@@ -120,7 +120,7 @@ def test_scan_creation_and_results(client):
     scan = response.json()
     scan_id = scan["id"]
 
-    assert scan["status"] == "pending"
+    assert scan["status"] == "completed"
 
     assert client.get(
         f"/api/scans/{scan_id}"
@@ -131,7 +131,13 @@ def test_scan_creation_and_results(client):
     )
 
     assert results.status_code == 200
-    assert results.json() == []
+    assert len(results.json()) == 4
+    assert {item["category"] for item in results.json()} == {
+        "prompt_injection",
+        "sensitive_data_leakage",
+        "unauthorized_tool_usage",
+        "memory_poisoning",
+    }
 
 
 def test_scan_rejects_missing_agent(client):
@@ -165,8 +171,9 @@ def test_dashboard_statistics(client):
 
     assert data["agents"]["total"] == 1
     assert data["scans"]["total"] == 1
-    assert data["scans"]["pending"] == 1
-    assert data["results"]["verified_findings"] == 0
+    assert data["scans"]["completed"] == 1
+    assert data["scans"]["pending"] == 0
+    assert data["results"]["verified_findings"] == 1
 
 
 def test_pdf_generation_and_download(client, tmp_path, monkeypatch):
@@ -206,10 +213,10 @@ def test_pdf_generation_and_download(client, tmp_path, monkeypatch):
     assert download_response.status_code == 200
     assert download_response.content.startswith(b"%PDF-")
 
-    # Generating a report must not falsely complete the scan.
+    # Generating a report must not alter the completed scan status.
     scan = client.get(
         f"/api/scans/{scan_id}"
     ).json()
 
-    assert scan["status"] == "pending"
+    assert scan["status"] == "completed"
 

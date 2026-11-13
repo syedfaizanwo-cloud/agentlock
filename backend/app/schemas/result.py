@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_serializer
 
@@ -26,6 +26,8 @@ class AttackResultRead(BaseModel):
     category: str
     vulnerability_status: str
     severity: str
+    risk_score: float | None = None
+    risk_rationale: str | None = None
     attack_input: str | None
     impact: str | None
     remediation: str | None

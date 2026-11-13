@@ -1,14 +1,21 @@
-﻿from datetime import datetime
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+# Eight canonical categories plus two legacy API aliases.
 AttackCategory = Literal[
     "prompt_injection",
+    "data_leakage",
+    "tool_abuse",
+    "memory_poisoning",
+    "indirect_prompt_injection",
+    "identity_privilege_abuse",
+    "human_approval_bypass",
+    "inter_agent_spoofing",
     "sensitive_data_leakage",
     "unauthorized_tool_usage",
-    "memory_poisoning",
 ]
 
 
@@ -20,7 +27,9 @@ class ScanCreate(BaseModel):
     @classmethod
     def validate_categories(cls, categories):
         if len(categories) != len(set(categories)):
-            raise ValueError("Duplicate attack categories are not allowed")
+            raise ValueError(
+                "Duplicate attack categories are not allowed"
+            )
         return categories
 
 

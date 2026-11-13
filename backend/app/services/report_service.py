@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -146,15 +146,33 @@ def generate_report(db: Session, scan_id: int) -> Report:
 
         categories = scan.attack_categories or []
 
-        verified_count = sum(
-            1 for result in scan.results if result.verified
+        confirmed_vulnerabilities = sum(
+            1 for result in scan.results
+            if result.verified
+            and result.vulnerability_status == "vulnerable"
+        )
+
+        verified_blocked = sum(
+            1 for result in scan.results
+            if result.verified
+            and result.vulnerability_status == "blocked"
+        )
+
+        inconclusive_results = sum(
+            1 for result in scan.results
+            if (
+                result.vulnerability_status == "inconclusive"
+                or not result.verified
+            )
         )
 
         summary_data = [
             ["Metric", "Recorded value"],
             ["Attack categories", str(len(categories))],
             ["Attack results", str(len(scan.results))],
-            ["Verified findings", str(verified_count)],
+            ["Confirmed vulnerabilities", str(confirmed_vulnerabilities)],
+            ["Verified blocked attacks", str(verified_blocked)],
+            ["Inconclusive / unverified", str(inconclusive_results)],
         ]
 
         summary_table = Table(
@@ -200,6 +218,13 @@ def generate_report(db: Session, scan_id: int) -> Report:
                 ("Category", result.category),
                 ("Vulnerability status", result.vulnerability_status),
                 ("Severity", result.severity),
+                (
+                    "Risk score",
+                    str(result.risk_score)
+                    if result.risk_score is not None
+                    else "Unrated"
+                ),
+                ("Risk rationale", result.risk_rationale or "Not recorded"),
                 ("Verified", "Yes" if result.verified else "No"),
                 ("Attack input", result.attack_input or "Not recorded"),
                 ("Impact", result.impact or "Not recorded"),
@@ -255,7 +280,8 @@ def generate_report(db: Session, scan_id: int) -> Report:
                 "the time of generation. Verified status reflects the "
                 "stored backend verification flag. An empty result set "
                 "does not prove that an agent is secure. Pending or "
-                "running scans are incomplete assessments.",
+                "running scans are incomplete assessments. Risk scores "
+                "are provisional AgentLock ratings, not CVSS scores.",
                 body_style,
             )
         )

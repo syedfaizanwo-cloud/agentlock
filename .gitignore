@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 
@@ -21,3 +21,6 @@ htmlcov/
 
 # Generated reports
 backend/reports/
+
+# Local development safety backups
+/AgentLock_*_backup_*/

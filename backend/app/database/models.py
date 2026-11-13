@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime
 
@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Float,
     JSON,
     String,
     Text,
@@ -113,6 +114,8 @@ class AttackResult(Base):
     attack_input: Mapped[str | None] = mapped_column(Text, nullable=True)
     impact: Mapped[str | None] = mapped_column(Text, nullable=True)
     remediation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    risk_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    risk_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     retest_status: Mapped[str] = mapped_column(
         String(30), default="not_tested"

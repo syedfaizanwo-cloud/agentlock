@@ -14,6 +14,11 @@ def create_scan(db: Session, scan_data: ScanCreate) -> Scan:
     if agent.status != "active":
         raise ValueError("Agent is not active")
 
+    if agent.agent_type not in {"vulnerable_mock", "protected_mock"}:
+        raise ValueError(
+            "Use vulnerable_mock or protected_mock for engine execution."
+        )
+
     scan = Scan(
         agent_id=agent.id,
         attack_categories=list(scan_data.attack_categories),
