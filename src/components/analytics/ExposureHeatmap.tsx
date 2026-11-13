@@ -1,41 +1,40 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Agent, AttackCategory, Finding } from '../../types/api';
-import { ShieldAlert, Search, Filter, ArrowUpRight } from 'lucide-react';
+import { Agent, AttackCategory, Finding, Scan, ALL_ATTACK_CATEGORIES, ATTACK_CATEGORY_LABELS } from '../../types/api';
+import { ShieldAlert, Search } from 'lucide-react';
 
 interface ExposureHeatmapProps {
   agents: Agent[];
   findings?: Finding[];
+  scans?: Scan[];
   onSelectAgent?: (agent: Agent) => void;
   onSelectCell?: (agent: Agent, category: AttackCategory) => void;
 }
 
-const CATEGORIES: { id: AttackCategory; label: string; color: string }[] = [
-  { id: 'prompt_injection', label: 'Prompt Injection', color: '#FF6F59' },
-  { id: 'data_leakage', label: 'Data Leakage', color: '#FF3158' },
-  { id: 'tool_abuse', label: 'Tool Abuse', color: '#FF9F0A' },
-  { id: 'memory_poisoning', label: 'Memory Poisoning', color: '#32D6A0' },
-];
+const CATEGORIES: { id: AttackCategory; label: string }[] = ALL_ATTACK_CATEGORIES.map((id) => ({
+  id,
+  label: ATTACK_CATEGORY_LABELS[id] || id,
+}));
 
 export const ExposureHeatmap: React.FC<ExposureHeatmapProps> = ({
   agents = [],
   findings = [],
+  scans = [],
   onSelectAgent,
   onSelectCell,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [hoveredCell, setHoveredCell] = useState<{ agentId: string; catId: string } | null>(null);
 
-  // Compute actual finding counts per agent and category
-  const getCellStats = (agentId: string, category: AttackCategory) => {
+  const getCellStats = (agent: Agent, category: AttackCategory) => {
+    const aScanIds = new Set(scans.filter((s) => s.agent_id === agent.id).map((s) => s.id));
     const matching = findings.filter(
-      (f) => f.agent_id === agentId && f.category === category
+      (f) => aScanIds.has(f.scan_id) && f.category === category
     );
     const count = matching.length;
-    const hasCritical = matching.some((f) => f.severity === 'critical');
-    const hasHigh = matching.some((f) => f.severity === 'high');
-    const hasMedium = matching.some((f) => f.severity === 'medium');
+    const hasCritical = matching.some((f) => f.severity.toLowerCase() === 'critical');
+    const hasHigh = matching.some((f) => f.severity.toLowerCase() === 'high');
+    const hasMedium = matching.some((f) => f.severity.toLowerCase() === 'medium');
 
     return {
       count,
@@ -47,161 +46,124 @@ export const ExposureHeatmap: React.FC<ExposureHeatmapProps> = ({
   const filteredAgents = agents.filter(
     (a) =>
       a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.target_url.toLowerCase().includes(searchTerm.toLowerCase())
+      a.agent_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(a.id).includes(searchTerm)
   );
 
   const getCellBadgeStyle = (severity: string, count: number) => {
     if (count === 0) {
-      return 'bg-white/[0.03] text-[#C8C0AC]/40 border-white/[0.05] hover:bg-white/[0.08]';
+      return 'bg-navy-950 text-cream-muted/50 border-[#1A2E5A] hover:bg-navy-850';
     }
     switch (severity) {
       case 'critical':
-        return 'bg-[#FF3158]/20 text-[#FF3158] border-[#FF3158]/40 hover:bg-[#FF3158]/30 shadow-[0_0_12px_rgba(255,49,88,0.25)]';
+        return 'bg-severity-critical/15 text-severity-critical border-severity-critical/30 hover:bg-severity-critical/25';
       case 'high':
-        return 'bg-[#FF9F0A]/20 text-[#FF9F0A] border-[#FF9F0A]/40 hover:bg-[#FF9F0A]/30 shadow-[0_0_12px_rgba(255,159,10,0.25)]';
+        return 'bg-severity-high/15 text-severity-high border-severity-high/30 hover:bg-severity-high/25';
       case 'medium':
-        return 'bg-[#FFD43B]/20 text-[#FFD43B] border-[#FFD43B]/40 hover:bg-[#FFD43B]/30 shadow-[0_0_12px_rgba(255,212,59,0.25)]';
+        return 'bg-severity-medium/15 text-severity-medium border-severity-medium/30 hover:bg-severity-medium/25';
       case 'low':
+        return 'bg-severity-low/15 text-severity-low border-severity-low/30 hover:bg-severity-low/25';
       default:
-        return 'bg-[#32D6A0]/20 text-[#32D6A0] border-[#32D6A0]/40 hover:bg-[#32D6A0]/30 shadow-[0_0_12px_rgba(50,214,160,0.25)]';
+        return 'bg-navy-950 text-cream-muted border-[#1A2E5A]';
     }
   };
 
-  return (
-    <div className="p-6 rounded-2xl glass-panel space-y-5 relative overflow-hidden group">
-      {/* Ambient Radial Backlight */}
-      <div className="absolute top-0 right-0 w-80 h-40 bg-[#FF6F59]/[0.02] rounded-full blur-3xl pointer-events-none" />
+  if (agents.length === 0) {
+    return (
+      <div className="p-5 rounded-xl bg-navy-900 border border-[#1A2E5A] text-center py-8 space-y-2">
+        <ShieldAlert className="w-8 h-8 mx-auto text-cream-muted/40" />
+        <div className="text-xs font-mono text-cream-muted">
+          Register AI agent endpoints to view cross-agent adversarial exposure matrix.
+        </div>
+      </div>
+    );
+  }
 
-      {/* Header and Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08] relative z-10">
+  return (
+    <div className="p-5 rounded-xl bg-navy-900 border border-[#1A2E5A] space-y-4">
+      {/* Header and Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[#1A2E5A]">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-mono font-bold text-[#F5EDDC] uppercase tracking-wide">
+            <h3 className="text-sm font-sans font-bold text-cream">
               Agent Adversarial Exposure Heatmap
             </h3>
-            <span className="text-xs font-mono text-[#C8C0AC] px-2.5 py-0.5 rounded-full bg-[#060D1F]/60 border border-white/10">
-              {agents.length} Targets
+            <span className="text-xs font-mono text-coral bg-coral/10 px-2 py-0.5 rounded border border-coral/30">
+              {agents.length} agents
             </span>
           </div>
-          <p className="text-xs text-[#C8C0AC] mt-1 font-sans">
-            Confirmed vulnerability density matrix mapped across tested autonomous agents
+          <p className="text-xs text-cream-muted mt-0.5 font-sans">
+            Cross-agent vulnerability distribution across eight security evaluation vectors
           </p>
         </div>
 
-        {/* Search Input Filter */}
         <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#C8C0AC]" />
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-cream-muted" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Filter target agents..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl glass-input text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/50 focus:outline-none"
+            placeholder="Search agents..."
+            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-navy-950 border border-[#1A2E5A] text-xs font-mono text-cream placeholder-cream-muted/50 focus:outline-none focus:border-coral"
           />
         </div>
       </div>
 
-      {agents.length === 0 ? (
-        <div className="py-12 text-center text-xs font-mono text-[#C8C0AC]/70 space-y-2">
-          <ShieldAlert className="w-8 h-8 mx-auto text-[#C8C0AC]/40" />
-          <div>No agent targets evaluated yet. Register an agent and execute a scan to generate heatmap telemetry.</div>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#060D1F]/50 relative z-10">
-          <table className="w-full text-xs font-mono text-left">
-            <thead className="bg-[#0A1633]/80 text-[#C8C0AC] border-b border-white/10">
-              <tr>
-                <th className="py-3 px-4 font-semibold">Target Agent</th>
-                {CATEGORIES.map((cat) => (
-                  <th key={cat.id} className="py-3 px-4 text-center font-semibold">
-                    <span className="truncate">{cat.label}</span>
-                  </th>
-                ))}
-                <th className="py-3 px-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5 text-[#F5EDDC]">
-              {filteredAgents.map((agent) => {
-                return (
-                  <tr
-                    key={agent.id}
-                    className="hover:bg-white/[0.03] transition-colors group/row"
+      {/* Heatmap Table */}
+      <div className="overflow-x-auto rounded-lg border border-[#1A2E5A] bg-navy-950">
+        <table className="w-full text-xs font-mono">
+          <thead className="bg-navy-850 text-cream-muted border-b border-[#1A2E5A]">
+            <tr>
+              <th className="py-2.5 px-4 text-left font-semibold sticky left-0 bg-navy-850 z-10">
+                Agent Target
+              </th>
+              {CATEGORIES.map((cat) => (
+                <th key={cat.id} className="py-2.5 px-3 text-center font-semibold whitespace-nowrap">
+                  {cat.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#1A2E5A]">
+            {filteredAgents.map((agent) => (
+              <tr key={agent.id} className="hover:bg-navy-850/50 transition-colors">
+                <td className="py-3 px-4 sticky left-0 bg-navy-950 hover:bg-navy-850/50">
+                  <div
+                    onClick={() => onSelectAgent?.(agent)}
+                    className="cursor-pointer group"
                   >
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-[#F5EDDC] group-hover/row:text-[#FF6F59] transition-colors">
-                        {agent.name}
-                      </div>
-                      <div className="text-[10px] text-[#C8C0AC]/70 font-mono truncate max-w-xs">
-                        {agent.target_url}
-                      </div>
-                    </td>
+                    <div className="font-sans font-semibold text-cream text-xs group-hover:text-coral transition-colors">
+                      {agent.name}
+                    </div>
+                    <div className="text-[11px] text-cream-muted font-mono truncate max-w-xs mt-0.5">
+                      #{agent.id} ({agent.agent_type})
+                    </div>
+                  </div>
+                </td>
 
-                    {CATEGORIES.map((cat) => {
-                      const cell = getCellStats(agent.id, cat.id);
-                      const isHovered =
-                        hoveredCell?.agentId === agent.id && hoveredCell?.catId === cat.id;
-
-                      return (
-                        <td key={cat.id} className="py-3 px-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => onSelectCell?.(agent, cat.id)}
-                            onMouseEnter={() =>
-                              setHoveredCell({ agentId: agent.id, catId: cat.id })
-                            }
-                            onMouseLeave={() => setHoveredCell(null)}
-                            title={`${agent.name} // ${cat.label}: ${cell.count} findings`}
-                            className={`inline-flex items-center justify-center min-w-[36px] px-2.5 py-1 rounded-lg border font-mono font-bold text-xs transition-all ${getCellBadgeStyle(
-                              cell.severity,
-                              cell.count
-                            )} ${isHovered ? 'scale-110' : ''}`}
-                          >
-                            {cell.count}
-                          </button>
-                        </td>
-                      );
-                    })}
-
-                    <td className="py-3 px-4 text-right">
+                {CATEGORIES.map((cat) => {
+                  const stats = getCellStats(agent, cat.id);
+                  return (
+                    <td key={cat.id} className="py-3 px-3 text-center">
                       <button
-                        onClick={() => onSelectAgent?.(agent)}
-                        className="p-1.5 rounded-lg bg-white/[0.04] border border-white/10 hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-all inline-flex items-center gap-1"
-                        title="Focus on this agent"
+                        type="button"
+                        onClick={() => onSelectCell?.(agent, cat.id)}
+                        className={`inline-flex items-center justify-center min-w-[36px] px-2 py-1 rounded text-xs font-bold border transition-colors ${getCellBadgeStyle(
+                          stats.severity,
+                          stats.count
+                        )}`}
+                        title={`${agent.name} - ${cat.label}: ${stats.count} findings (${stats.severity})`}
+                        aria-label={`${agent.name} ${cat.label}: ${stats.count} findings`}
                       >
-                        <span className="text-[10px] hidden sm:inline">Inspect</span>
-                        <ArrowUpRight className="w-3.5 h-3.5" />
+                        {stats.count > 0 ? stats.count : '-'}
                       </button>
                     </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Exposure Matrix Severity Legend */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/[0.08] text-[11px] font-mono text-[#C8C0AC]/80 relative z-10">
-        <div className="flex flex-wrap items-center gap-4">
-          <span className="text-white/60">Risk Legend:</span>
-          <span className="flex items-center gap-1.5 text-[#FF3158]">
-            <span className="w-2 h-2 rounded-full bg-[#FF3158]" /> Critical
-          </span>
-          <span className="flex items-center gap-1.5 text-[#FF9F0A]">
-            <span className="w-2 h-2 rounded-full bg-[#FF9F0A]" /> High
-          </span>
-          <span className="flex items-center gap-1.5 text-[#FFD43B]">
-            <span className="w-2 h-2 rounded-full bg-[#FFD43B]" /> Medium
-          </span>
-          <span className="flex items-center gap-1.5 text-[#32D6A0]">
-            <span className="w-2 h-2 rounded-full bg-[#32D6A0]" /> Low
-          </span>
-          <span className="flex items-center gap-1.5 text-[#C8C0AC]/50">
-            <span className="w-2 h-2 rounded-full bg-white/20" /> Zero Exploits
-          </span>
-        </div>
-
-        <span className="text-[#FF6F59]">Click cell to inspect matching vulnerability evidence</span>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

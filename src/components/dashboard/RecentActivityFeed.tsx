@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { Scan } from '../../types/api';
-import { ShieldCheck, ShieldAlert, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Clock, Loader2 } from 'lucide-react';
 
 interface RecentActivityFeedProps {
   scans: Scan[];
-  onSelectScan?: (scanId: string) => void;
+  onSelectScan?: (scanId: string | number) => void;
   onViewAll?: () => void;
 }
 
@@ -19,26 +19,26 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
     switch (status) {
       case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#34D399]/10 text-[#34D399] border border-[#34D399]/30">
-            <ShieldCheck className="w-3 h-3" /> COMPLETED
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium bg-severity-low/10 text-severity-low border border-severity-low/30">
+            <ShieldCheck className="w-3 h-3" /> Completed
           </span>
         );
       case 'running':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#FACC15]/10 text-[#FACC15] border border-[#FACC15]/30">
-            <Loader2 className="w-3 h-3 animate-spin" /> RUNNING
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium bg-severity-medium/10 text-severity-medium border border-severity-medium/30">
+            <Loader2 className="w-3 h-3 animate-spin" /> Running
           </span>
         );
       case 'failed':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#E11D48]/10 text-[#E11D48] border border-[#E11D48]/30">
-            <ShieldAlert className="w-3 h-3" /> FAILED
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-bold bg-severity-critical/10 text-severity-critical border border-severity-critical/30">
+            <ShieldAlert className="w-3 h-3" /> Failed
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#12234A] text-[#C8C0AC] border border-[#12234A]">
-            <Clock className="w-3 h-3" /> PENDING
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono bg-navy-850 text-cream-muted border border-[#1A2E5A]">
+            <Clock className="w-3 h-3" /> Pending
           </span>
         );
     }
@@ -46,42 +46,39 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
 
   if (!scans || scans.length === 0) {
     return (
-      <div className="p-8 rounded-2xl glass-panel text-center space-y-2">
-        <div className="text-xs font-mono text-[#C8C0AC]">No recent scan activity</div>
-        <p className="text-xs text-[#C8C0AC]/70">
-          Initiate an adversarial scan to generate execution history.
+      <div className="p-6 rounded-xl bg-navy-900 border border-[#1A2E5A] text-center space-y-1">
+        <div className="text-xs font-mono text-cream">No recent scans</div>
+        <p className="text-xs text-cream-muted">
+          Start a security scan to evaluate your agent.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {scans.slice(0, 5).map((scan) => (
         <div
           key={scan.id}
           onClick={() => onSelectScan?.(scan.id)}
-          className="p-4 rounded-xl glass-card glass-card-hover transition-all cursor-pointer flex items-center justify-between gap-4"
+          className="p-4 rounded-lg bg-navy-900 border border-[#1A2E5A] hover:border-coral transition-colors cursor-pointer flex items-center justify-between gap-4"
         >
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-[#F5EDDC]">
-                {scan.agent_name || scan.agent_id}
+              <span className="font-mono text-xs font-bold text-cream">
+                {scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`}
               </span>
               {getStatusBadge(scan.status)}
             </div>
-            <div className="text-[11px] font-mono text-[#C8C0AC]/70">
-              {new Date(scan.started_at).toLocaleString()} // {scan.categories.join(', ')}
+            <div className="text-xs font-mono text-cream-muted">
+              {new Date(scan.started_at || scan.created_at).toLocaleString()} | Categories: {(scan.attack_categories || []).length} vectors
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {typeof scan.vulnerabilities_found === 'number' && (
-              <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-[#FF6F59]/10 border border-[#FF6F59]/30 text-[#FF6F59]">
-                {scan.vulnerabilities_found} findings
-              </span>
-            )}
-            <ArrowRight className="w-4 h-4 text-[#C8C0AC] hover:text-[#FF6F59] transition-colors" />
+            <span className="text-xs font-mono px-2 py-0.5 rounded bg-coral/10 border border-coral/30 text-coral">
+              {(scan.attack_categories || []).length} tested
+            </span>
           </div>
         </div>
       ))}
@@ -89,9 +86,9 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
       {onViewAll && (
         <button
           onClick={onViewAll}
-          className="w-full py-2.5 text-center text-xs font-mono text-[#FF6F59] hover:underline"
+          className="w-full py-2 text-center text-xs font-mono text-coral hover:underline"
         >
-          View all scans &rarr;
+          View all scans
         </button>
       )}
     </div>

@@ -1,14 +1,55 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { SeverityDonut } from '../dashboard/SeverityDonut';
-import { AttackVectorChart } from '../dashboard/AttackVectorChart';
-import { VulnerabilityVelocityChart } from '../dashboard/VulnerabilityVelocityChart';
-import { ExposureHeatmap } from './ExposureHeatmap';
+import dynamic from 'next/dynamic';
 import { DashboardFilters, FilterState } from './DashboardFilters';
-import { FindingDetailDrawer } from '../threats/FindingDetailDrawer';
-import { LazyViewport } from '../layout/LazyViewport';
-import { DashboardStats, Scan, Agent, Finding, SeverityLevel, AttackCategory } from '../../types/api';
+import { DashboardStats, Scan, Agent, Finding, SeverityLevel, AttackCategory, ALL_ATTACK_CATEGORIES, ATTACK_CATEGORY_LABELS } from '../../types/api';
+
+// Dynamic lazy imports for heavy chart and drawer components
+const SeverityDonut = dynamic(
+  () => import('../dashboard/SeverityDonut').then((mod) => mod.SeverityDonut),
+  {
+    ssr: false,
+    loading: () => <div className="h-72 rounded-xl bg-navy-900 border border-[#1A2E5A] animate-pulse" />,
+  }
+);
+
+const AttackVectorChart = dynamic(
+  () => import('../dashboard/AttackVectorChart').then((mod) => mod.AttackVectorChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-72 rounded-xl bg-navy-900 border border-[#1A2E5A] animate-pulse" />,
+  }
+);
+
+const VulnerabilityVelocityChart = dynamic(
+  () => import('../dashboard/VulnerabilityVelocityChart').then((mod) => mod.VulnerabilityVelocityChart),
+  {
+    ssr: false,
+    loading: () => <div className="h-72 rounded-xl bg-navy-900 border border-[#1A2E5A] animate-pulse" />,
+  }
+);
+
+const ExposureHeatmap = dynamic(
+  () => import('./ExposureHeatmap').then((mod) => mod.ExposureHeatmap),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 rounded-xl bg-navy-900 border border-[#1A2E5A] animate-pulse" />,
+  }
+);
+
+const CategorySeverityHeatmap = dynamic(
+  () => import('./CategorySeverityHeatmap').then((mod) => mod.CategorySeverityHeatmap),
+  {
+    ssr: false,
+    loading: () => <div className="h-64 rounded-xl bg-navy-900 border border-[#1A2E5A] animate-pulse" />,
+  }
+);
+
+const FindingDetailDrawer = dynamic(
+  () => import('../threats/FindingDetailDrawer').then((mod) => mod.FindingDetailDrawer),
+  { ssr: false }
+);
 
 interface AnalyticsSectionProps {
   stats: DashboardStats | null;
@@ -16,6 +57,8 @@ interface AnalyticsSectionProps {
   agents: Agent[];
   findings?: Finding[];
   onSelectAgentForScan?: (agent: Agent) => void;
+  filters?: FilterState;
+  onFilterChange?: (filters: FilterState) => void;
 }
 
 export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
@@ -24,192 +67,194 @@ export const AnalyticsSection: React.FC<AnalyticsSectionProps> = ({
   agents = [],
   findings = [],
   onSelectAgentForScan,
+  filters: externalFilters,
+  onFilterChange,
 }) => {
-  // Global filter state for analytics exploration
-  const [filters, setFilters] = useState<FilterState>({
+  const [internalFilters, setInternalFilters] = useState<FilterState>({
     agentId: 'ALL',
     category: 'ALL',
     severity: 'ALL',
   });
 
-  // Drawer state for interactive deep dive
+  const filters = externalFilters || internalFilters;
+  const updateFilters = (newFilters: FilterState) => {
+    setInternalFilters(newFilters);
+    onFilterChange?.(newFilters);
+  };
+
   const [drawerFinding, setDrawerFinding] = useState<Finding | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Filtered findings dataset
+  const agentScanIds = useMemo(() => {
+    if (filters.agentId === 'ALL') return null;
+    const targetId = Number(filters.agentId);
+    return new Set(scans.filter((s) => s.agent_id === targetId).map((s) => s.id));
+  }, [scans, filters.agentId]);
+
   const filteredFindings = useMemo(() => {
     return findings.filter((f) => {
-      if (filters.agentId !== 'ALL' && f.agent_id !== filters.agentId) return false;
+      if (agentScanIds && !agentScanIds.has(f.scan_id)) return false;
       if (filters.category !== 'ALL' && f.category !== filters.category) return false;
-      if (filters.severity !== 'ALL' && f.severity !== filters.severity) return false;
+      if (filters.severity !== 'ALL' && f.severity.toLowerCase() !== filters.severity.toLowerCase()) return false;
       return true;
     });
-  }, [findings, filters]);
+  }, [findings, filters, agentScanIds]);
 
-  // Compute dynamic category breakdown based on filtered findings or stats
   const categoryData = useMemo(() => {
     if (findings.length > 0) {
-      const counts: Record<string, number> = {
-        'Prompt Injection': 0,
-        'Data Leakage': 0,
-        'Tool Abuse': 0,
-        'Memory Poisoning': 0,
-      };
-      filteredFindings.forEach((f) => {
-        if (f.category === 'prompt_injection') counts['Prompt Injection']++;
-        if (f.category === 'data_leakage') counts['Data Leakage']++;
-        if (f.category === 'tool_abuse') counts['Tool Abuse']++;
-        if (f.category === 'memory_poisoning') counts['Memory Poisoning']++;
+      const counts: Record<string, number> = {};
+      ALL_ATTACK_CATEGORIES.forEach((cat) => {
+        counts[cat] = 0;
       });
-      return Object.entries(counts).map(([category, count]) => ({ category, count }));
+      filteredFindings.forEach((f) => {
+        if (counts[f.category] !== undefined) counts[f.category]++;
+      });
+      return ALL_ATTACK_CATEGORIES.map((cat) => ({
+        category: ATTACK_CATEGORY_LABELS[cat] || cat,
+        count: counts[cat] || 0,
+      }));
     }
 
-    if (stats?.category_breakdown) {
-      return [
-        { category: 'Prompt Injection', count: stats.category_breakdown.prompt_injection },
-        { category: 'Data Leakage', count: stats.category_breakdown.data_leakage },
-        { category: 'Tool Abuse', count: stats.category_breakdown.tool_abuse },
-        { category: 'Memory Poisoning', count: stats.category_breakdown.memory_poisoning },
-      ];
+    if (stats?.results?.by_category) {
+      return ALL_ATTACK_CATEGORIES.map((cat) => ({
+        category: ATTACK_CATEGORY_LABELS[cat] || cat,
+        count: stats.results.by_category[cat] || 0,
+      }));
     }
     return [];
   }, [findings, filteredFindings, stats]);
 
-  // Compute dynamic severity breakdown based on filtered findings or stats
   const severityData = useMemo(() => {
+    const counts: Record<SeverityLevel, number> = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      info: 0,
+    };
     if (findings.length > 0) {
-      const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
       filteredFindings.forEach((f) => {
-        if (counts[f.severity] !== undefined) counts[f.severity]++;
+        const sev = f.severity.toLowerCase() as SeverityLevel;
+        if (counts[sev] !== undefined) counts[sev]++;
       });
       return counts;
     }
-    return stats?.severity_breakdown || {};
+    if (stats?.results?.by_severity) {
+      (Object.keys(counts) as SeverityLevel[]).forEach((sev) => {
+        counts[sev] = stats.results.by_severity[sev] || 0;
+      });
+      return counts;
+    }
+    return counts;
   }, [findings, filteredFindings, stats]);
 
-  // Format Timeline points
   const timelineData = useMemo(() => {
-    return scans.map((s, idx) => ({
-      scan: `Scan #${idx + 1}`,
-      findings: s.vulnerabilities_found || 0,
-      critical: Math.min(s.vulnerabilities_found || 0, 1),
-    }));
-  }, [scans]);
+    return scans.map((s, idx) => {
+      const scanFindings = findings.filter((f) => f.scan_id === s.id);
+      return {
+        scan: `Scan #${idx + 1}`,
+        scanId: String(s.id),
+        date: new Date(s.started_at || s.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        timestamp: new Date(s.started_at || s.created_at).getTime(),
+        findings: scanFindings.length,
+      };
+    });
+  }, [scans, findings]);
 
   const handleSelectSeverity = (sev: SeverityLevel) => {
     if (filters.severity === sev) {
-      setFilters((prev) => ({ ...prev, severity: 'ALL' }));
+      updateFilters({ ...filters, severity: 'ALL' });
     } else {
-      setFilters((prev) => ({ ...prev, severity: sev }));
-      // Open the first matching finding in the drawer if available
-      const matching = findings.find((f) => f.severity === sev);
-      if (matching) {
-        setDrawerFinding(matching);
-        setIsDrawerOpen(true);
-      }
+      updateFilters({ ...filters, severity: sev });
     }
   };
 
   const handleSelectCategory = (cat: AttackCategory | string) => {
     if (filters.category === cat) {
-      setFilters((prev) => ({ ...prev, category: 'ALL' }));
+      updateFilters({ ...filters, category: 'ALL' });
     } else {
-      setFilters((prev) => ({ ...prev, category: cat as AttackCategory }));
-      // Open first matching finding in the drawer
-      const matching = findings.find((f) => f.category === cat);
-      if (matching) {
-        setDrawerFinding(matching);
-        setIsDrawerOpen(true);
-      }
+      updateFilters({ ...filters, category: cat as AttackCategory });
     }
   };
 
-  const handleSelectHeatmapCell = (agent: Agent, category: AttackCategory) => {
-    const matching = findings.find(
-      (f) => f.agent_id === agent.id && f.category === category
+  const handleHeatmapCellSelect = (category: AttackCategory, severity: SeverityLevel) => {
+    updateFilters({ ...filters, category, severity });
+    const resultsEl = document.getElementById('results');
+    if (resultsEl) resultsEl.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleCellSelect = (agent: Agent, category: AttackCategory) => {
+    const aScanIds = new Set(scans.filter((s) => s.agent_id === agent.id).map((s) => s.id));
+    const match = findings.find(
+      (f) => aScanIds.has(f.scan_id) && f.category === category
     );
-    if (matching) {
-      setDrawerFinding(matching);
+    if (match) {
+      setDrawerFinding(match);
       setIsDrawerOpen(true);
     } else {
-      // Set filter to inspect
-      setFilters((prev) => ({
-        ...prev,
-        agentId: agent.id,
-        category,
-      }));
+      updateFilters({ agentId: String(agent.id), category, severity: 'ALL' });
     }
-  };
-
-  const handleResetFilters = () => {
-    setFilters({
-      agentId: 'ALL',
-      category: 'ALL',
-      severity: 'ALL',
-    });
   };
 
   return (
     <div className="space-y-6">
-      {/* 1. Intelligence Filter Toolbar */}
+      {/* Interactive Filters Bar */}
       <DashboardFilters
         agents={agents}
         filters={filters}
-        onChange={setFilters}
-        onReset={handleResetFilters}
+        onChange={updateFilters}
+        onReset={() => updateFilters({ agentId: 'ALL', category: 'ALL', severity: 'ALL' })}
       />
 
-      {/* 2. Primary 2-Column Visualizations: Severity Donut + Attack Vector Bars */}
+      {/* Row 1: Split Charts (Donut + Attack Vector) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <LazyViewport minHeight={340}>
-          <SeverityDonut
-            data={severityData}
-            onSelectSeverity={handleSelectSeverity}
-            selectedSeverity={filters.severity !== 'ALL' ? filters.severity : null}
-          />
-        </LazyViewport>
+        <SeverityDonut
+          data={severityData}
+          onSelectSeverity={handleSelectSeverity}
+          selectedSeverity={filters.severity !== 'ALL' ? filters.severity : null}
+        />
 
-        <LazyViewport minHeight={340}>
-          <AttackVectorChart
-            data={categoryData}
-            onSelectCategory={handleSelectCategory}
-            selectedCategory={filters.category !== 'ALL' ? filters.category : null}
-          />
-        </LazyViewport>
+        <AttackVectorChart
+          data={categoryData}
+          onSelectCategory={handleSelectCategory}
+          selectedCategory={filters.category !== 'ALL' ? filters.category : null}
+        />
       </div>
 
-      {/* 3. Vulnerability Velocity Timeline */}
-      <LazyViewport minHeight={340}>
-        <VulnerabilityVelocityChart
-          data={timelineData}
-          onSelectScanPoint={(pt) => {
-            // Find finding from that scan if possible
-            const f = findings[0];
-            if (f) {
-              setDrawerFinding(f);
-              setIsDrawerOpen(true);
-            }
-          }}
-        />
-      </LazyViewport>
+      {/* Row 2: Category vs Severity Heatmap */}
+      <CategorySeverityHeatmap
+        findings={findings}
+        onSelectCell={handleHeatmapCellSelect}
+        selectedCategory={filters.category !== 'ALL' ? (filters.category as AttackCategory) : null}
+        selectedSeverity={filters.severity !== 'ALL' ? (filters.severity as SeverityLevel) : null}
+      />
 
-      {/* 4. Agent Adversarial Exposure Matrix */}
-      <LazyViewport minHeight={360}>
-        <ExposureHeatmap
-          agents={agents}
-          findings={findings}
-          onSelectAgent={(agent) => {
-            setFilters((prev) => ({ ...prev, agentId: agent.id }));
-            onSelectAgentForScan?.(agent);
-          }}
-          onSelectCell={handleSelectHeatmapCell}
-        />
-      </LazyViewport>
+      {/* Row 3: Full-width Velocity Graph */}
+      <VulnerabilityVelocityChart
+        data={timelineData}
+        onSelectScanPoint={(point) => {
+          const matchedScan = scans.find((_, i) => `Scan #${i + 1}` === point.scan);
+          if (matchedScan) {
+            const resultsEl = document.getElementById('results');
+            if (resultsEl) resultsEl.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+      />
 
-      {/* 5. Slide-over Finding Detail Drawer */}
+      {/* Row 4: Full-width Exposure Matrix */}
+      <ExposureHeatmap
+        agents={agents}
+        findings={findings}
+        onSelectAgent={(agent) => onSelectAgentForScan?.(agent)}
+        onSelectCell={handleCellSelect}
+      />
+
+      {/* Slide-over Finding Detail Drawer */}
       <FindingDetailDrawer
         finding={drawerFinding}
-        agentName={agents.find((a) => a.id === drawerFinding?.agent_id)?.name}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
       />

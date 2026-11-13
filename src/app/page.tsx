@@ -1,20 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TopBar } from '../components/navigation/TopBar';
 import { ScannerHero } from '../components/hero/ScannerHero';
-import { GlassMetricCard } from '../components/dashboard/GlassMetricCard';
-import { Sparkline } from '../components/bento/Sparkline';
+import { MetricTile } from '../components/dashboard/MetricTile';
 import { RecentActivityFeed } from '../components/dashboard/RecentActivityFeed';
 import { AnalyticsSection } from '../components/analytics/AnalyticsSection';
+import { FilterState } from '../components/analytics/DashboardFilters';
 import { AgentManagementView } from '../components/agents/AgentManagementView';
 import { SecurityScanSection } from '../components/scan/SecurityScanSection';
 import { VulnerabilityResultsSection } from '../components/results/VulnerabilityResultsSection';
 import { ReportsSection } from '../components/reports/ReportsSection';
 import { FAQSection } from '../components/faq/FAQSection';
 import { SiteFooter } from '../components/layout/SiteFooter';
-import { MockBadge } from '../components/ui/MockBadge';
-import { api, isMockMode } from '../lib/api-client';
+import { ShieldZoomIntro } from '../components/intro/ShieldZoomIntro';
+import { api } from '../lib/api-client';
+import { getRealSparkline } from '../lib/chart-data';
 import { Agent, Scan, DashboardStats, RegisterAgentPayload, Finding } from '../types/api';
 import { Bot, Activity, ShieldAlert, AlertTriangle } from 'lucide-react';
 
@@ -25,7 +26,7 @@ export default function HomePage() {
   const [backendOnline, setBackendOnline] = useState(false);
   const [latencyMs, setLatencyMs] = useState(0);
 
-  // Real data state (empty initial states, no fake numbers)
+  // Real data state
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [scans, setScans] = useState<Scan[]>([]);
@@ -40,76 +41,80 @@ export default function HomePage() {
   // Active scan tracking
   const [activeScan, setActiveScan] = useState<Scan | null>(null);
 
+  // Shared interactive filter state across Analytics and Results
+  const [sharedFilters, setSharedFilters] = useState<FilterState>({
+    agentId: 'ALL',
+    category: 'ALL',
+    severity: 'ALL',
+  });
+
   // Handler to fetch findings for a specific scan and navigate to #results
-  const handleSelectScan = useCallback(async (scanId: string) => {
+  const handleSelectScan = useCallback(async (scanId: string | number) => {
     setIsLoadingFindings(true);
     try {
-      const res = await api.getScanResults(scanId);
+      const res = await api.getScanFindings(Number(scanId));
       setFindings(res);
       const resultsEl = document.getElementById('results');
       if (resultsEl) {
         resultsEl.scrollIntoView({ behavior: 'smooth' });
         window.history.replaceState(null, '', '#results');
       }
-    } catch (err) {
-      console.warn('Failed to load scan findings:', err);
+    } catch {
+      // Keep existing findings if lookup fails
     } finally {
       setIsLoadingFindings(false);
     }
   }, []);
 
-  // Initial data loading & backend health check
+  // Parallel data loading & backend health check (Phase 2 Performance)
   const refreshData = useCallback(async () => {
-    // Check backend health
-    try {
-      const conn = await api.checkConnection();
-      setBackendOnline(conn.ok);
-      setLatencyMs(conn.latencyMs);
-    } catch {
+    setIsLoadingStats(true);
+    setIsLoadingAgents(true);
+
+    const [connResult, statsResult, agentsResult, scansResult] = await Promise.allSettled([
+      api.checkConnection(),
+      api.getDashboardStats(),
+      api.getAgents(),
+      api.getScans(),
+    ]);
+
+    // Backend connectivity
+    if (connResult.status === 'fulfilled') {
+      setBackendOnline(connResult.value.ok);
+      setLatencyMs(connResult.value.latencyMs);
+    } else {
       setBackendOnline(false);
     }
 
-    // Load stats
-    try {
-      setIsLoadingStats(true);
-      const s = await api.getDashboardStats();
-      setStats(s);
-    } catch (err) {
-      console.warn('Dashboard stats unavailable:', err);
-    } finally {
-      setIsLoadingStats(false);
+    // Dashboard stats
+    if (statsResult.status === 'fulfilled') {
+      setStats(statsResult.value);
     }
+    setIsLoadingStats(false);
 
-    // Load agents
-    try {
-      setIsLoadingAgents(true);
-      const a = await api.getAgents();
-      setAgents(a);
-    } catch (err) {
-      console.warn('Agents list unavailable:', err);
-    } finally {
-      setIsLoadingAgents(false);
+    // Agents
+    if (agentsResult.status === 'fulfilled') {
+      setAgents(agentsResult.value);
     }
+    setIsLoadingAgents(false);
 
-    // Load scans
-    try {
-      const sc = await api.getScans();
+    // Scans & Findings
+    if (scansResult.status === 'fulfilled') {
+      const sc = scansResult.value;
       setScans(sc);
 
-      // If we have completed scans and no findings loaded yet, load the latest completed scan findings
+      // Load findings for latest completed scan if not yet loaded
       if (sc.length > 0) {
         const latestCompleted = sc.find((s) => s.status === 'completed') || sc[0];
         if (latestCompleted) {
           try {
-            const f = await api.getScanResults(latestCompleted.id);
+            const f = await api.getScanFindings(latestCompleted.id);
             setFindings((prev) => (prev.length === 0 ? f : prev));
           } catch {
             // Keep empty findings if unavailable
           }
         }
       }
-    } catch (err) {
-      console.warn('Scans list unavailable:', err);
     }
   }, []);
 
@@ -142,8 +147,13 @@ export default function HomePage() {
 
   // Agent registration handler
   const handleRegisterAgent = async (payload: RegisterAgentPayload) => {
-    await api.registerAgent(payload);
-    await refreshData();
+    try {
+      const created = await api.registerAgent(payload);
+      setAgents((prev) => [created, ...prev]);
+      api.getDashboardStats().then((s) => setStats(s)).catch(() => {});
+    } catch (err) {
+      throw err;
+    }
   };
 
   const handleSelectAgentForScan = (agent: Agent) => {
@@ -158,25 +168,34 @@ export default function HomePage() {
   const handleScanCompleted = useCallback(
     async (completedScan: Scan) => {
       setActiveScan(completedScan);
-      await refreshData();
-      await handleSelectScan(completedScan.id);
-    },
-    [refreshData, handleSelectScan]
-  );
+      // Concurrently update scan results, stats, and scan list
+      const [findingsRes] = await Promise.allSettled([
+        api.getScanFindings(completedScan.id),
+        api.getDashboardStats().then((s) => setStats(s)),
+        api.getScans().then((sc) => setScans(sc)),
+      ]);
 
-  // Sparkline data generator from real scan history
-  const getFindingTrend = (): number[] => {
-    if (!scans || scans.length === 0) return [];
-    return scans.map((s) => s.vulnerabilities_found || 0);
-  };
+      if (findingsRes.status === 'fulfilled') {
+        setFindings(findingsRes.value);
+        const resultsEl = document.getElementById('results');
+        if (resultsEl) {
+          resultsEl.scrollIntoView({ behavior: 'smooth' });
+          window.history.replaceState(null, '', '#results');
+        }
+      }
+    },
+    []
+  );
 
   return (
     <div className="relative min-h-screen text-[#F5EDDC]">
+      {/* Cinematic Opening Camera-Zoom Intro */}
+      <ShieldZoomIntro />
+
       {/* Fixed TopBar with scroll-spy & connection monitor */}
       <TopBar
         activeSectionId={activeSectionId}
         isScanning={activeScan !== null && activeScan.status === 'running'}
-        scanProgress={activeScan?.progress}
         backendOnline={backendOnline}
         latencyMs={latencyMs}
         counts={{
@@ -186,7 +205,7 @@ export default function HomePage() {
         onRefreshHealth={refreshData}
       />
 
-      <main id="main-content" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20 space-y-28">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20 space-y-28">
         {/* Section 1: Hero #top */}
         <ScannerHero
           backendOnline={backendOnline}
@@ -205,70 +224,57 @@ export default function HomePage() {
         <section id="overview" className="scroll-mt-24 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#12234A]">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF6F59]" />
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
-                  Platform Overview
-                </h2>
-                {isMockMode && <MockBadge />}
-              </div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
+                Platform Overview
+              </h2>
               <p className="text-xs sm:text-sm text-[#C8C0AC] mt-1 font-sans">
                 Real-time security telemetry and confirmed vulnerabilities across tested agents.
               </p>
             </div>
           </div>
 
-          {/* 4 Premium Glass Metric Cards */}
+          {/* 4 Metric Tiles with Real Sparklines */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <GlassMetricCard
+            <MetricTile
               title="Registered Agents"
-              value={isLoadingStats ? '-' : stats?.registered_agents ?? agents.length}
+              value={isLoadingStats ? '-' : stats?.agents?.total ?? agents.length}
               subtitle="Active target inventory"
               icon={Bot}
               targetSectionId="#agents"
-              sparklineData={[1, 1, 2, Math.max(agents.length, 2)]}
-              sparklineColor="#32D6A0"
-              accentColor="#32D6A0"
             />
 
-            <GlassMetricCard
+            <MetricTile
               title="Total Scans"
-              value={isLoadingStats ? '-' : stats?.total_scans ?? scans.length}
+              value={isLoadingStats ? '-' : stats?.scans?.total ?? scans.length}
               subtitle="Adversarial evaluations"
               icon={Activity}
+              sparklineData={getRealSparkline(scans)}
               targetSectionId="#reports"
-              sparklineData={scans.length > 1 ? scans.map((_, i) => i + 1) : [0, scans.length]}
-              sparklineColor="#FF6F59"
-              accentColor="#FF6F59"
             />
 
-            <GlassMetricCard
+            <MetricTile
               title="Confirmed Vulns"
-              value={isLoadingStats ? '-' : stats?.confirmed_vulnerabilities ?? 0}
+              value={isLoadingStats ? '-' : stats?.results?.confirmed_vulnerabilities ?? 0}
               subtitle="Verified security flaws"
               icon={AlertTriangle}
+              sparklineData={getRealSparkline(scans)}
               targetSectionId="#results"
-              sparklineData={getFindingTrend().length > 1 ? getFindingTrend() : [0, stats?.confirmed_vulnerabilities || 0]}
-              sparklineColor="#FFD43B"
-              accentColor="#FFD43B"
             />
 
-            <GlassMetricCard
+            <MetricTile
               title="Critical Findings"
-              value={isLoadingStats ? '-' : stats?.critical_findings ?? 0}
+              value={isLoadingStats ? '-' : stats?.results?.by_severity?.critical ?? 0}
               subtitle="Immediate action required"
               icon={ShieldAlert}
+              sparklineData={getRealSparkline(scans)}
               targetSectionId="#results"
-              sparklineData={[0, stats?.critical_findings || 0]}
-              sparklineColor="#FF3158"
-              accentColor="#FF3158"
               badge="CRITICAL"
             />
           </div>
 
           {/* Recent Activity Feed */}
           <div className="pt-2">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-[#C8C0AC] mb-3">
+            <h3 className="text-xs font-mono text-[#C8C0AC] mb-3">
               Recent Scan Executions
             </h3>
             <RecentActivityFeed
@@ -286,13 +292,9 @@ export default function HomePage() {
         <section id="analytics" className="scroll-mt-24 space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-[#12234A]">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF6F59]" />
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
-                  Vulnerability Analytics
-                </h2>
-                {isMockMode && <MockBadge />}
-              </div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
+                Vulnerability Analytics
+              </h2>
               <p className="text-xs sm:text-sm text-[#C8C0AC] mt-1 font-sans">
                 Deterministic breakdown by category, severity distribution, and historical velocity.
               </p>
@@ -305,6 +307,8 @@ export default function HomePage() {
             agents={agents}
             findings={findings}
             onSelectAgentForScan={handleSelectAgentForScan}
+            filters={sharedFilters}
+            onFilterChange={setSharedFilters}
           />
         </section>
 
@@ -312,13 +316,9 @@ export default function HomePage() {
         <section id="agents" className="scroll-mt-24 space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-[#12234A]">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF6F59]" />
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
-                  Agent Management
-                </h2>
-                {isMockMode && <MockBadge />}
-              </div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
+                Agent Management
+              </h2>
               <p className="text-xs sm:text-sm text-[#C8C0AC] mt-1 font-sans">
                 Register target endpoints and verify active communication status.
               </p>
@@ -327,6 +327,8 @@ export default function HomePage() {
 
           <AgentManagementView
             agents={agents}
+            findings={findings}
+            scans={scans}
             onRegisterAgent={handleRegisterAgent}
             onSelectAgentForScan={handleSelectAgentForScan}
             isLoading={isLoadingAgents}
@@ -337,13 +339,9 @@ export default function HomePage() {
         <section id="scan" className="scroll-mt-24 space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-[#12234A]">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF6F59]" />
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
-                  Security Scanning
-                </h2>
-                {isMockMode && <MockBadge />}
-              </div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
+                Security Scanning
+              </h2>
               <p className="text-xs sm:text-sm text-[#C8C0AC] mt-1 font-sans">
                 Select attack categories and launch automated adversarial evaluations.
               </p>
@@ -364,13 +362,9 @@ export default function HomePage() {
         <section id="results" className="scroll-mt-24 space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-[#12234A]">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF6F59]" />
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
-                  Vulnerability Results
-                </h2>
-                {isMockMode && <MockBadge />}
-              </div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
+                Vulnerability Results
+              </h2>
               <p className="text-xs sm:text-sm text-[#C8C0AC] mt-1 font-sans">
                 Detailed findings with attack payloads, raw evidence, and code remediation.
               </p>
@@ -380,6 +374,14 @@ export default function HomePage() {
           <VulnerabilityResultsSection
             findings={findings}
             isLoading={isLoadingFindings}
+            selectedCategory={sharedFilters.category}
+            selectedSeverity={sharedFilters.severity}
+            onClearCategoryFilter={() =>
+              setSharedFilters((prev) => ({ ...prev, category: 'ALL' }))
+            }
+            onClearSeverityFilter={() =>
+              setSharedFilters((prev) => ({ ...prev, severity: 'ALL' }))
+            }
           />
         </section>
 
@@ -387,13 +389,9 @@ export default function HomePage() {
         <section id="reports" className="scroll-mt-24 space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-[#12234A]">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FF6F59]" />
-                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
-                  Audit Reports
-                </h2>
-                {isMockMode && <MockBadge />}
-              </div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[#F5EDDC] font-sans">
+                Audit Reports
+              </h2>
               <p className="text-xs sm:text-sm text-[#C8C0AC] mt-1 font-sans">
                 Cryptographically verifiable scan records and downloadable executive PDF summaries.
               </p>
@@ -402,6 +400,7 @@ export default function HomePage() {
 
           <ReportsSection
             scans={scans}
+            findings={findings}
             onSelectScan={handleSelectScan}
             onRefresh={refreshData}
           />
@@ -409,7 +408,7 @@ export default function HomePage() {
 
         {/* Section 8: FAQ #faq */}
         <FAQSection />
-      </main>
+      </div>
 
       <SiteFooter />
     </div>

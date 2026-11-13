@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useRef, useCallback } from 'react';
-import { Shield, X, Github, ExternalLink } from 'lucide-react';
-import TextRoll from '../ui/text-roll';
+import Link from 'next/link';
+import { Shield, X, Github, ExternalLink, LogIn, LogOut } from 'lucide-react';
+import type { User } from '../../types/api';
 
 export interface NavItem {
   id: string;
@@ -25,6 +26,8 @@ interface HamburgerDrawerProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   counts?: Record<string, number>;
+  currentUser?: User | null;
+  onLogout?: () => void;
 }
 
 export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
@@ -32,6 +35,8 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
   isOpen,
   onOpenChange,
   counts = {},
+  currentUser,
+  onLogout,
 }) => {
   const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
@@ -114,69 +119,70 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
           heading.focus();
         }
       }, 350);
+    } else {
+      window.location.href = `/#${id}`;
     }
   };
 
   return (
     <>
-      {/* Fixed Hamburger Trigger Button (48x48px hit area, raised-sm, navy surface) */}
       <button
         ref={triggerButtonRef}
         onClick={() => (isOpen ? handleClose() : handleOpen())}
-        className="w-12 h-12 rounded-xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] flex flex-col items-center justify-center gap-1.5 p-3 text-[#F5EDDC] hover:border-[#FF6F59] active:scale-95 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#FF6F59]"
+        className="w-10 h-10 rounded-lg bg-navy-900 border border-[#1A2E5A] flex flex-col items-center justify-center gap-1 p-2.5 text-cream hover:border-coral active:scale-95 transition-colors focus:outline-none focus:ring-2 focus:ring-coral"
         aria-label={isOpen ? 'Close menu' : 'Open menu'}
         aria-expanded={isOpen}
         aria-controls="site-menu"
         type="button"
       >
         <span
-          className={`w-5 h-0.5 bg-[#F5EDDC] rounded-full transition-all duration-200 transform origin-center ${
-            isOpen ? 'rotate-45 translate-y-2 bg-[#FF6F59]' : ''
+          className={`w-4 h-0.5 bg-cream rounded-full transition-all duration-200 transform origin-center ${
+            isOpen ? 'rotate-45 translate-y-1.5 bg-coral' : ''
           }`}
         />
         <span
-          className={`w-5 h-0.5 bg-[#F5EDDC] rounded-full transition-opacity duration-150 ${
+          className={`w-4 h-0.5 bg-cream rounded-full transition-opacity duration-150 ${
             isOpen ? 'opacity-0' : ''
           }`}
         />
         <span
-          className={`w-5 h-0.5 bg-[#F5EDDC] rounded-full transition-all duration-200 transform origin-center ${
-            isOpen ? '-rotate-45 -translate-y-2 bg-[#FF6F59]' : ''
+          className={`w-4 h-0.5 bg-cream rounded-full transition-all duration-200 transform origin-center ${
+            isOpen ? '-rotate-45 -translate-y-1.5 bg-coral' : ''
           }`}
         />
       </button>
 
-      {/* Solid Navy Backdrop overlay */}
+      {/* Solid Backdrop overlay */}
       <div
-        className={`fixed inset-0 z-[95] bg-[#030714]/80 transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[95] bg-navy-950/80 transition-opacity duration-200 ${
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={handleClose}
         aria-hidden="true"
       />
 
-      {/* Solid Navy Drawer (No blur, no glassmorphism) */}
+      {/* Solid Navy Drawer */}
       <aside
         id="site-menu"
         ref={drawerRef}
         role="dialog"
         aria-modal="true"
         aria-label="Navigation menu"
-        className={`fixed top-0 right-0 bottom-0 z-[96] w-full sm:w-[380px] bg-[#0A1633] border-l border-[#12234A] shadow-[8px_0_24px_#030714] flex flex-col transition-transform duration-250 ease-out transform ${
+        className={`fixed top-0 right-0 bottom-0 z-[96] w-full sm:w-[360px] bg-navy-900 border-l border-[#1A2E5A] shadow-2xl flex flex-col transition-transform duration-200 ease-out transform ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#12234A] bg-[#060D1F]">
+        <div className="flex items-center justify-between p-5 border-b border-[#1A2E5A] bg-navy-950">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#FF6F59] text-[#060D1F] flex items-center justify-center font-bold shadow-[2px_2px_4px_#030714]">
+            <div className="w-8 h-8 rounded-lg bg-coral text-navy-950 flex items-center justify-center font-bold">
               <Shield className="w-4 h-4 fill-current" />
             </div>
             <div>
-              <div className="text-sm font-sans font-bold text-[#F5EDDC] tracking-tight">
+              <div className="text-sm font-sans font-bold text-cream">
                 AgentLock
               </div>
-              <div className="text-[10px] font-mono text-[#C8C0AC] uppercase tracking-wider">
+              <div className="text-xs font-mono text-cream-muted">
                 Red Teaming Platform
               </div>
             </div>
@@ -186,15 +192,15 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
             ref={closeButtonRef}
             onClick={handleClose}
             aria-label="Close navigation drawer"
-            className="w-9 h-9 rounded-lg bg-[#0A1633] border border-[#12234A] text-[#C8C0AC] hover:text-[#F5EDDC] hover:border-[#FF6F59] flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6F59]"
+            className="w-8 h-8 rounded-lg bg-navy-900 border border-[#1A2E5A] text-cream-muted hover:text-cream hover:border-coral flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-coral"
             type="button"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Navigation Items with TextRoll */}
-        <nav className="flex-1 overflow-y-auto p-6 space-y-2">
+        {/* Navigation Items */}
+        <nav className="flex-1 overflow-y-auto p-5 space-y-1.5">
           {NAV_ITEMS.map((item, idx) => {
             const isActive = activeSectionId === item.id;
             const count = counts[item.id];
@@ -205,54 +211,73 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
                 href={`#${item.id}`}
                 onClick={(e) => handleItemSelect(item.id, e)}
                 aria-current={isActive ? 'true' : undefined}
-                className={`group flex items-center justify-between px-4 py-3.5 rounded-xl border transition-all duration-200 ${
+                className={`group flex items-center justify-between px-3.5 py-2.5 rounded-lg border transition-colors ${
                   isActive
-                    ? 'bg-[#12234A] border-[#FF6F59] text-[#F5EDDC] shadow-[inset_3px_3px_6px_#030714,inset_-3px_-3px_6px_#12234A]'
-                    : 'bg-[#0A1633] border-transparent hover:border-[#12234A] text-[#C8C0AC]'
+                    ? 'bg-navy-850 border-coral text-cream'
+                    : 'bg-transparent border-transparent hover:bg-navy-850 hover:border-[#1A2E5A] text-cream-muted hover:text-cream'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                      isActive ? 'bg-[#FF6F59]' : 'bg-[#12234A] group-hover:bg-[#FF6F59]/50'
-                    }`}
-                  />
-                  <span className="text-xs font-mono text-[#C8C0AC]/60">0{idx + 1}</span>
-                  <TextRoll
-                    className="font-sans font-semibold text-sm tracking-wide text-[#F5EDDC]"
-                    active={isActive}
-                  >
+                  <span className="text-xs font-mono text-cream-muted">0{idx + 1}</span>
+                  <span className="text-sm font-sans font-medium text-cream">
                     {item.label}
-                  </TextRoll>
+                  </span>
                 </div>
 
-                {typeof count === 'number' && (
-                  <span className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-[#060D1F] border border-[#12234A] text-[#C8C0AC]">
+                {typeof count === 'number' && count > 0 && (
+                  <span className="px-2 py-0.5 rounded text-xs font-mono bg-navy-950 text-coral border border-[#1A2E5A]">
                     {count}
                   </span>
                 )}
               </a>
             );
           })}
+
+          <div className="pt-2 border-t border-[#1A2E5A] mt-3">
+            {currentUser ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 px-3.5 py-2 text-xs font-mono text-cream-muted bg-navy-950 rounded-lg border border-[#1A2E5A]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-severity-low flex-shrink-0" />
+                  <span className="truncate">{currentUser.email || currentUser.name || 'Signed In'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleClose();
+                    onLogout?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-xs font-mono text-cream hover:bg-navy-850 hover:text-coral transition-colors text-left"
+                >
+                  <LogOut className="w-4 h-4 text-coral" />
+                  <span>Log out</span>
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                onClick={handleClose}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg text-xs font-mono text-cream hover:bg-navy-850 hover:text-coral transition-colors"
+              >
+                <LogIn className="w-4 h-4 text-coral" />
+                <span>Log in</span>
+              </Link>
+            )}
+          </div>
         </nav>
 
-        {/* Drawer Footer with GitHub Link */}
-        <div className="p-6 border-t border-[#12234A] bg-[#060D1F] space-y-3">
+        {/* Footer */}
+        <div className="p-5 border-t border-[#1A2E5A] bg-navy-950 text-xs font-mono text-cream-muted space-y-3">
           <a
             href="https://github.com/syedfaizanwo-cloud/agentlock"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-[#0A1633] border border-[#12234A] text-xs font-mono text-[#C8C0AC] hover:text-[#F5EDDC] hover:border-[#FF6F59] transition-colors"
+            className="inline-flex items-center gap-2 text-cream hover:text-coral transition-colors"
           >
-            <span className="flex items-center gap-2">
-              <Github className="w-4 h-4" />
-              <span>GitHub Repo</span>
-            </span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+            <Github className="w-4 h-4" />
+            <span>GitHub Repository</span>
+            <ExternalLink className="w-3 h-3 opacity-60" />
           </a>
-          <div className="text-[10px] font-mono text-[#C8C0AC]/60 text-center">
-            AgentLock // Authorized Testing Only
-          </div>
+          <div>Zero Fabricated Data Guarantee</div>
         </div>
       </aside>
     </>

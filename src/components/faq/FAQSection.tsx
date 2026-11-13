@@ -15,13 +15,13 @@ const FAQ_ITEMS: FAQItem[] = [
     id: 'faq-1',
     question: 'What is AgentLock?',
     answer:
-      'AgentLock is an AI Agent Vulnerability Scanner and Automated Red Teaming Platform. It evaluates autonomous AI agents by executing controlled adversarial tests against user-owned targets to detect vulnerabilities before attackers exploit them.',
+      'AgentLock is an AI Agent Vulnerability Scanner and automated red teaming platform. It evaluates autonomous AI agents by executing controlled adversarial tests against user-owned targets to detect vulnerabilities before attackers exploit them.',
   },
   {
     id: 'faq-2',
     question: 'What types of vulnerabilities does AgentLock test for?',
     answer:
-      'The platform tests four primary vulnerability categories: Prompt Injection (direct and indirect instruction override), Data Leakage (system prompt extraction and unauthorized data exfiltration), Tool Abuse (unauthorized parameter manipulation and unintended API invocation), and Memory Poisoning (state manipulation across chat sessions).',
+      'The platform tests four primary vulnerability categories: Prompt Injection (direct and indirect instruction overrides), Data Leakage (system prompt extraction and unauthorized data exfiltration), Tool Abuse (unauthorized parameter manipulation and unintended API invocation), and Memory Poisoning (state manipulation across chat sessions).',
   },
   {
     id: 'faq-3',
@@ -64,7 +64,7 @@ export const FAQSection: React.FC = () => {
   };
 
   return (
-    <section id="faq" className="pt-12 scroll-mt-24 space-y-8">
+    <section id="faq" className="pt-12 scroll-mt-24 space-y-6">
       {/* FAQPage JSON-LD Structured Data */}
       <script
         type="application/ld+json"
@@ -72,20 +72,16 @@ export const FAQSection: React.FC = () => {
       />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#12234A]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#1A2E5A]">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FF6F59] shadow-[0_0_10px_rgba(255,111,89,0.4)]" />
-            <HelpCircle className="w-5 h-5 text-[#FF6F59]" />
-            <h2 className="text-xl sm:text-2xl font-bold text-[#F5EDDC] tracking-tight font-sans">
-              Frequently Asked Questions
+            <HelpCircle className="w-5 h-5 text-coral" />
+            <h2 className="text-xl sm:text-2xl font-bold text-cream tracking-tight font-display">
+              Frequently asked questions
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-[#FF6F59]/10 border border-[#FF6F59]/30 text-[#FF6F59] flex items-center gap-1.5">
-              SECURITY SCANNER FAQ
-            </span>
           </div>
-          <p className="text-xs sm:text-sm text-[#C8C0AC] mt-1 font-sans">
-            Direct, factual answers regarding evaluation scope, security controls, and verification methodology.
+          <p className="text-xs sm:text-sm text-cream-muted mt-1 font-sans">
+            Direct answers regarding evaluation scope, security controls, and verification methodology.
           </p>
         </div>
       </div>
@@ -99,10 +95,10 @@ export const FAQSection: React.FC = () => {
             <div
               key={item.id}
               id={item.id}
-              className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+              className={`rounded-xl border transition-colors overflow-hidden ${
                 isOpen
-                  ? 'glass-panel border-[#FF6F59]/50 shadow-[0_0_24px_rgba(255,111,89,0.15)]'
-                  : 'glass-card hover:border-white/20'
+                  ? 'bg-navy-900 border-coral'
+                  : 'bg-navy-900 border-[#1A2E5A] hover:border-[#1A2E5A]/80'
               }`}
             >
               <button
@@ -110,40 +106,39 @@ export const FAQSection: React.FC = () => {
                 onClick={() => toggleItem(item.id)}
                 aria-expanded={isOpen}
                 aria-controls={`faq-answer-${item.id}`}
-                className="w-full p-4 sm:p-5 flex items-center justify-between text-left gap-4 transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6F59]"
+                className="w-full p-4 sm:p-5 flex items-center justify-between text-left gap-4 transition-colors focus:outline-none focus:ring-2 focus:ring-coral"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono text-[#FF6F59] font-bold">
+                  <span className="text-xs font-mono text-coral font-bold">
                     0{index + 1}
                   </span>
-                  <span className="text-sm sm:text-base font-semibold text-[#F5EDDC] font-sans tracking-tight">
+                  <span className="text-sm sm:text-base font-semibold text-cream font-sans tracking-tight">
                     {item.question}
                   </span>
                 </div>
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border border-[#12234A] transition-transform duration-200 ${
-                    isOpen ? 'rotate-180 bg-[#12234A] text-[#FF6F59]' : 'bg-[#060D1F] text-[#C8C0AC]'
+                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border border-[#1A2E5A] transition-transform duration-200 ${
+                    isOpen ? 'rotate-180 bg-navy-850 text-coral' : 'bg-navy-950 text-cream-muted'
                   }`}
                 >
                   <ChevronDown className="w-4 h-4" />
                 </div>
               </button>
 
-              {/* Smooth Grid-Template-Rows Expand Transition */}
               <div
                 id={`faq-answer-${item.id}`}
                 data-faq-answer="true"
-                className={`grid transition-all duration-300 ease-out ${
+                className={`grid transition-all duration-200 ease-out ${
                   isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
                 }`}
               >
                 <div className="overflow-hidden">
-                  <div className="px-5 pb-5 pt-1 space-y-4 border-t border-[#12234A]">
-                    <p className="text-xs sm:text-sm text-[#C8C0AC] font-sans leading-relaxed">
+                  <div className="px-5 pb-5 pt-1 space-y-3 border-t border-[#1A2E5A]">
+                    <p className="text-xs sm:text-sm text-cream-soft font-sans leading-relaxed">
                       {item.answer}
                     </p>
 
-                    <div className="flex items-center justify-end pt-3 border-t border-[#12234A] text-xs font-mono text-[#C8C0AC]">
+                    <div className="flex items-center justify-end pt-2 border-t border-[#1A2E5A] text-xs font-mono text-cream-muted">
                       <CopyButton text={item.answer} label="Copy answer" />
                     </div>
                   </div>

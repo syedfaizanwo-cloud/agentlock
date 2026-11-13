@@ -1,33 +1,37 @@
-# AgentLock: AI Agent Vulnerability Scanner & Automated Red Teaming Platform
+# AgentLock: AI Agent Vulnerability Scanner and Automated Red Teaming
 
-> AgentLock is an enterprise automated red-teaming platform that evaluates autonomous AI agents, tool-augmented LLMs, and multi-agent workflows against production security threats before deployment.
+AgentLock is a security evaluation platform for autonomous AI agents, tool-augmented LLMs, and multi-agent workflows. It tests target endpoints against prompt injection, data leakage, tool abuse, and memory poisoning.
+
+## Application Routes
+- / : Main dashboard with platform overview, telemetry metrics, and scan launcher.
+- /agents : Target agent inventory and HTTP endpoint registration.
+- /scans : Scan configuration and execution runner.
+- /scans/[id] : Granular scan results, attack payloads, evidence, and remediation advice.
+- /reports : Audit reports and executive PDF downloads.
+- /faq : Security methodology, test categories, and common questions.
 
 ## Core Capabilities
-- Automated Red Teaming: Penetration testing suites tailored specifically for LLM and AI agent runtime architectures.
-- Prompt Injection Testing: Direct and indirect instruction override evaluation, jailbreak delimiter bypass tests, and multi-turn persona hijacking.
+- Prompt Injection Testing: Direct and indirect instruction override evaluation, jailbreak delimiter tests, and multi-turn persona hijacking.
 - Data Leakage Detection: System prompt extraction probes, API credential discovery tests, sensitive file exfiltration, and PII leakage verification.
-- Tool Abuse & Privilege Escalation: Parameter tampering evaluations, unauthorized function invocation checks, and command execution boundaries.
-- Memory Poisoning: Long-term memory contamination, session context manipulation, and cross-session knowledge poisoning.
-- Cryptographically Verifiable Audit Reports: Tamper-evident scan dossiers and executive PDF summaries.
+- Tool Abuse: Parameter tampering evaluations, unauthorized function invocation checks, and command execution boundaries.
+- Memory Poisoning: Cross-session context manipulation and persistent state contamination.
+- Audit Reports: Downloadable executive PDF summaries with severity distributions and remediation steps.
 
-## Architecture
-- Frontend: Next.js 14 App Router, React 18, TypeScript, Tailwind CSS, Recharts, Three.js (interactive live background), motion.
-- Backend: FastAPI REST service (Python) orchestrating scanning runs, agent target inventory, and persistence.
-- Attack Engine: Modular adversarial testing suite generating deterministic and LLM-assisted exploit payloads.
+## Frontend Technology Stack
+- Next.js 14 App Router
+- React 18 and TypeScript
+- Tailwind CSS
+- Three.js (WaveGridBackground persistent 3D canvas, dynamically imported)
+- Recharts (dynamically imported for below-the-fold charts)
+- Native fetch client with in-memory caching and offline fallback
 
 ## REST API Endpoints
-- GET /health - Service health check and latency diagnostics.
-- GET /api/dashboard/stats - Aggregated security telemetry and vulnerability counts.
-- GET /api/agents - Target agent inventory.
-- POST /api/agents - Register new agent endpoint for testing.
-- POST /api/scans - Initiate adversarial security evaluation.
-- GET /api/scans - Scan execution history.
-- GET /api/scans/{id} - Detailed status and progress of a specific scan.
-- GET /api/scans/{id}/results - Detailed findings, attack payloads, evidence, and remediation guidance.
-- GET /api/scans/{id}/report/pdf - Download cryptographically signed executive audit report.
-
-## Engineering Team
-- Syed Faizan: Attack Engine & Adversarial Vectors
-- Vikas C: Frontend Architecture, Design System & UI/UX
-- Dayanand R: FastAPI Backend & Services
-- Mansi: Security Research & Vulnerability Classifications
+- GET /health : Service health check and latency diagnostics.
+- GET /api/dashboard/stats : Aggregated security telemetry and vulnerability counts.
+- GET /api/agents : Target agent inventory.
+- POST /api/agents : Register new agent endpoint for testing.
+- POST /api/scans : Initiate adversarial security evaluation.
+- GET /api/scans : Scan execution history.
+- GET /api/scans/{id} : Status and progress of a specific scan.
+- GET /api/scans/{id}/results : Findings, attack payloads, evidence, and remediation code.
+- GET /api/scans/{id}/report/pdf : Download executive audit report PDF.

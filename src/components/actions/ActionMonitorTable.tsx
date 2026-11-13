@@ -15,8 +15,8 @@ import {
 
 interface ActionMonitorTableProps {
   scans: Scan[];
-  onSelectScan?: (scanId: string) => void;
-  onDownloadReport?: (scanId: string) => void;
+  onSelectScan?: (scanId: number) => void;
+  onDownloadReport?: (scanId: number) => void;
   onRefresh?: () => void;
   isLoading?: boolean;
 }
@@ -33,9 +33,8 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
 
   const filteredScans = scans.filter((scan) => {
     const matchesSearch =
-      (scan.agent_name && scan.agent_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      scan.agent_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      scan.id.toLowerCase().includes(searchTerm.toLowerCase());
+      (scan.agent_id !== null && String(scan.agent_id).includes(searchTerm)) ||
+      String(scan.id).includes(searchTerm);
 
     const matchesStatus = statusFilter === 'ALL' || scan.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -45,26 +44,26 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
     switch (status) {
       case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#34D399]/10 text-[#34D399] border border-[#34D399]/30">
-            <ShieldCheck className="w-3 h-3" /> COMPLETED
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-mono font-medium bg-severity-low/10 text-severity-low border border-severity-low/30">
+            <ShieldCheck className="w-3 h-3" /> Completed
           </span>
         );
       case 'running':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#FACC15]/10 text-[#FACC15] border border-[#FACC15]/30">
-            <Loader2 className="w-3 h-3 animate-spin" /> RUNNING
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-mono font-medium bg-severity-medium/10 text-severity-medium border border-severity-medium/30">
+            <Loader2 className="w-3 h-3 animate-spin" /> Running
           </span>
         );
       case 'failed':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#E11D48]/10 text-[#E11D48] border border-[#E11D48]/30">
-            <ShieldAlert className="w-3 h-3" /> FAILED
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-severity-critical/10 text-severity-critical border border-severity-critical/30">
+            <ShieldAlert className="w-3 h-3" /> Failed
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono bg-[#12234A] text-[#C8C0AC] border border-[#12234A]">
-            <Clock className="w-3 h-3" /> PENDING
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-mono bg-navy-850 text-cream-muted border border-[#1A2E5A]">
+            <Clock className="w-3 h-3" /> Pending
           </span>
         );
     }
@@ -75,13 +74,13 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
       {/* Search and Filter Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#C8C0AC]" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-cream-muted" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search scans by agent or ID..."
-            className="w-full pl-9 pr-4 py-2 rounded-xl glass-input text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/50 focus:outline-none"
+            placeholder="Search scans by agent or scan ID..."
+            className="w-full pl-9 pr-4 py-2 rounded-lg bg-navy-900 border border-[#1A2E5A] text-xs font-mono text-cream placeholder-cream-muted/50 focus:outline-none focus:border-coral"
           />
         </div>
 
@@ -89,9 +88,9 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl glass-input text-xs font-mono text-[#F5EDDC] focus:outline-none"
+            className="px-3 py-2 rounded-lg bg-navy-900 border border-[#1A2E5A] text-xs font-mono text-cream focus:outline-none focus:border-coral"
           >
-            <option value="ALL">All Statuses</option>
+            <option value="ALL">All statuses</option>
             <option value="completed">Completed</option>
             <option value="running">Running</option>
             <option value="failed">Failed</option>
@@ -101,8 +100,9 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
             <button
               onClick={onRefresh}
               disabled={isLoading}
-              aria-label="Refresh scan history"
-              className="p-2 rounded-xl glass-pill hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-colors"
+              title="Refresh scans"
+              aria-label="Refresh scans"
+              className="p-2 rounded-lg bg-navy-900 border border-[#1A2E5A] text-cream-muted hover:text-cream hover:border-coral transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -110,60 +110,54 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
         </div>
       </div>
 
-      {/* Flat Glass Table */}
-      <div className="overflow-x-auto rounded-2xl glass-panel">
-        <table className="w-full text-left text-xs font-mono">
-          <thead className="bg-[#060D1F]/70 border-b border-white/10 text-[#C8C0AC] uppercase tracking-wider">
-            <tr>
-              <th className="py-3 px-4">Scan ID</th>
-              <th className="py-3 px-4">Target Agent</th>
-              <th className="py-3 px-4">Test Categories</th>
-              <th className="py-3 px-4">Findings</th>
-              <th className="py-3 px-4">Status</th>
-              <th className="py-3 px-4">Started At</th>
-              <th className="py-3 px-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5 text-[#F5EDDC]">
-            {filteredScans.length === 0 ? (
+      {/* Main Scans Table */}
+      {filteredScans.length === 0 ? (
+        <div className="p-8 rounded-xl bg-navy-900 border border-[#1A2E5A] text-center space-y-2">
+          <div className="text-xs font-mono text-cream">No scans match your criteria</div>
+          <p className="text-xs text-cream-muted">
+            Execute a scan or clear the active filter to view scan history.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-[#1A2E5A] bg-navy-900">
+          <table className="w-full text-xs font-mono text-left">
+            <thead className="bg-navy-850 text-cream-muted border-b border-[#1A2E5A]">
               <tr>
-                <td colSpan={7} className="py-8 text-center text-[#C8C0AC]/70">
-                  No scan records matching your filter.
-                </td>
+                <th className="py-3 px-4 font-semibold">Target Agent</th>
+                <th className="py-3 px-4 font-semibold">Scan ID</th>
+                <th className="py-3 px-4 font-semibold">Status</th>
+                <th className="py-3 px-4 font-semibold">Findings</th>
+                <th className="py-3 px-4 font-semibold">Date</th>
+                <th className="py-3 px-4 text-right font-semibold">Actions</th>
               </tr>
-            ) : (
-              filteredScans.map((scan) => (
-                <tr key={scan.id} className="hover:bg-white/[0.03] transition-colors">
-                  <td className="py-3 px-4 font-bold text-[#FF6F59]">
-                    {scan.id.slice(0, 8)}...
+            </thead>
+            <tbody className="divide-y divide-[#1A2E5A] text-cream">
+              {filteredScans.map((scan) => (
+                <tr key={scan.id} className="hover:bg-navy-850/50 transition-colors">
+                  <td className="py-3 px-4 font-sans font-medium text-cream">
+                    {scan.agent_id ? `Agent #${scan.agent_id}` : `Scan #${scan.id}`}
                   </td>
-                  <td className="py-3 px-4">
-                    {scan.agent_name || scan.agent_id}
-                  </td>
-                  <td className="py-3 px-4 text-[#C8C0AC]">
-                    {scan.categories.join(', ')}
-                  </td>
-                  <td className="py-3 px-4">
-                    {typeof scan.vulnerabilities_found === 'number' ? (
-                      <span className="font-bold text-[#FF6F59]">
-                        {scan.vulnerabilities_found}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
+                  <td className="py-3 px-4 font-mono text-cream-muted">
+                    #{scan.id}
                   </td>
                   <td className="py-3 px-4">
                     {getStatusBadge(scan.status)}
                   </td>
-                  <td className="py-3 px-4 text-[#C8C0AC]">
-                    {new Date(scan.started_at).toLocaleString()}
+                  <td className="py-3 px-4">
+                    <span className="font-bold text-coral">
+                      {scan.attack_categories?.length || 0} vectors
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-cream-muted">
+                    {new Date(scan.started_at || scan.created_at).toLocaleDateString()}
                   </td>
                   <td className="py-3 px-4 text-right space-x-2">
                     {onSelectScan && (
                       <button
                         onClick={() => onSelectScan(scan.id)}
-                        className="p-1.5 rounded-lg glass-pill hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-all"
-                        title="View Results"
+                        className="p-1.5 rounded-lg bg-navy-850 border border-[#1A2E5A] hover:border-coral text-cream-soft hover:text-cream transition-colors"
+                        title="View findings"
+                        aria-label={`View findings for scan ${scan.id}`}
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </button>
@@ -171,19 +165,20 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
                     {onDownloadReport && scan.status === 'completed' && (
                       <button
                         onClick={() => onDownloadReport(scan.id)}
-                        className="p-1.5 rounded-lg glass-pill hover:border-[#FF6F59] text-[#C8C0AC] hover:text-[#F5EDDC] transition-all"
-                        title="Download PDF"
+                        className="p-1.5 rounded-lg bg-coral/10 border border-coral/30 hover:bg-coral hover:text-navy-950 text-coral transition-colors"
+                        title="Download PDF report"
+                        aria-label={`Download PDF report for scan ${scan.id}`}
                       >
                         <Download className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

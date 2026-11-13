@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, Component, ReactNode } from 'react';
+import React, { useEffect, useRef, useState, Component, ReactNode } from 'react';
 import * as THREE from 'three';
 
 export interface WaveGridBackgroundProps {
@@ -22,7 +22,7 @@ const _raycaster = new THREE.Raycaster();
 const _pointerPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const _intersectionPoint = new THREE.Vector3();
 
-// Simple client-side error boundary
+// Client-side error boundary with silent fallback to flat navy background
 export class WaveGridErrorBoundary extends Component<
   { children: ReactNode; fallback?: ReactNode },
   { hasError: boolean }
@@ -36,8 +36,8 @@ export class WaveGridErrorBoundary extends Component<
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.warn('AgentLock: WaveGridBackground encountered a WebGL error:', error, errorInfo);
+  componentDidCatch() {
+    // Graceful error capture without console pollution
   }
 
   render() {
@@ -66,6 +66,7 @@ export default function WaveGridBackground({
 }: WaveGridBackgroundProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isReady, setIsReady] = useState(false);
 
   // Live mutable props ref so scene is NEVER rebuilt when props change
   const propsRef = useRef({
@@ -95,22 +96,27 @@ export default function WaveGridBackground({
       '(prefers-reduced-motion: reduce)'
     ).matches;
 
-    // Detect device capabilities
+    // Detect device capabilities & reduce density for narrow screens and low-concurrency devices
     const isCoarse = window.matchMedia('(pointer: coarse)').matches;
     const isLowConcurrency = (navigator.hardwareConcurrency || 4) <= 4;
-    const effectiveGridSize = isCoarse || isLowConcurrency ? Math.min(gridSize, 28) : gridSize;
-    const maxPixelRatio = isCoarse || isLowConcurrency ? 1.5 : Math.min(window.devicePixelRatio || 1, 2);
+    const isNarrow = typeof window !== 'undefined' && window.innerWidth < 768;
+    const isLowPower = isCoarse || isLowConcurrency || isNarrow;
+
+    const effectiveGridSize = isLowPower ? Math.min(gridSize, 28) : gridSize;
+    const maxPixelRatio = isLowPower ? 1.5 : Math.min(window.devicePixelRatio || 1, 2);
 
     let renderer: THREE.WebGLRenderer | null = null;
     let scene: THREE.Scene | null = null;
     let camera: THREE.PerspectiveCamera | null = null;
     let instancedMesh: THREE.InstancedMesh | null = null;
+    let geometry: THREE.BoxGeometry | null = null;
+    let material: THREE.MeshStandardMaterial | null = null;
     let animFrameId: number | null = null;
 
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
-        antialias: !isCoarse,
+        antialias: !isLowPower,
         alpha: true,
         powerPreference: 'high-performance',
       });
@@ -150,8 +156,8 @@ export default function WaveGridBackground({
       const offsetX = ((countX - 1) * spacing) / 2;
       const offsetZ = ((countZ - 1) * spacing) / 2;
 
-      const geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-      const material = new THREE.MeshStandardMaterial({
+      geometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+      material = new THREE.MeshStandardMaterial({
         roughness: 0.35,
         metalness: 0.25,
       });
@@ -176,8 +182,8 @@ export default function WaveGridBackground({
       instancedMesh.instanceMatrix.needsUpdate = true;
       if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
       scene.add(instancedMesh);
-    } catch (err) {
-      console.warn('AgentLock: WebGL initialization failed, falling back to flat navy background.', err);
+    } catch {
+      // Graceful fallback to flat navy background without console error
       return;
     }
 
@@ -236,18 +242,27 @@ export default function WaveGridBackground({
     // Static frame for prefers-reduced-motion
     if (prefersReducedMotion) {
       renderer.render(scene, camera);
+      setIsReady(true);
+      if (typeof window !== 'undefined') {
+        (window as any).__AGENTLOCK_WAVE_READY__ = true;
+        window.dispatchEvent(new CustomEvent('agentlock-wave-ready'));
+      }
       return () => {
         window.removeEventListener('mousemove', handlePointerMove);
         window.removeEventListener('mouseleave', handlePointerLeave);
         window.removeEventListener('resize', handleResize);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
-        renderer?.dispose();
+        if (geometry) geometry.dispose();
+        if (material) material.dispose();
+        if (instancedMesh && scene) scene.remove(instancedMesh);
+        if (renderer) renderer.dispose();
       };
     }
 
     // Main render loop
     let lastTime = performance.now();
     let simTime = 0;
+    let hasRenderedFirstFrame = false;
 
     const tick = () => {
       if (!isTabVisible || !renderer || !scene || !camera || !instancedMesh) return;
@@ -334,6 +349,16 @@ export default function WaveGridBackground({
       if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
 
       renderer.render(scene, camera);
+
+      if (!hasRenderedFirstFrame) {
+        hasRenderedFirstFrame = true;
+        setIsReady(true);
+        if (typeof window !== 'undefined') {
+          (window as any).__AGENTLOCK_WAVE_READY__ = true;
+          window.dispatchEvent(new CustomEvent('agentlock-wave-ready'));
+        }
+      }
+
       animFrameId = requestAnimationFrame(tick);
     };
 
@@ -346,7 +371,9 @@ export default function WaveGridBackground({
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
 
-      // Do NOT call renderer.forceContextLoss() here to survive StrictMode double-mount!
+      if (geometry) geometry.dispose();
+      if (material) material.dispose();
+      if (instancedMesh && scene) scene.remove(instancedMesh);
       if (renderer) {
         renderer.dispose();
       }
@@ -356,14 +383,18 @@ export default function WaveGridBackground({
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 pointer-events-none z-0 overflow-hidden ${className}`}
+      className={`fixed inset-0 pointer-events-none z-0 overflow-hidden transition-opacity duration-[400ms] ease-out ${
+        isReady ? 'opacity-100' : 'opacity-0'
+      } ${className}`}
       aria-hidden="true"
       style={{ backgroundColor: '#060D1F' }}
     >
       <canvas
         ref={canvasRef}
-        className="w-full h-full block"
-        style={{ width: '100vw', height: '100vh' }}
+        aria-hidden="true"
+        tabIndex={-1}
+        className="w-full h-full block pointer-events-none"
+        style={{ width: '100vw', height: '100vh', pointerEvents: 'none' }}
       />
     </div>
   );

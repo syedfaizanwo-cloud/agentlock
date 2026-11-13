@@ -1,5 +1,5 @@
 {
-  "name": "AgentLock - AI Agent Vulnerability Scanner",
+  "name": "AgentLock: AI Agent Vulnerability Scanner",
   "short_name": "AgentLock",
   "description": "Automated Red Teaming and Vulnerability Evaluation Platform for Autonomous AI Agents",
   "icons": [
@@ -24,7 +24,7 @@
       "type": "image/png"
     }
   ],
-  "theme_color": "#0A1633",
+  "theme_color": "#060D1F",
   "background_color": "#060D1F",
   "display": "standalone",
   "start_url": "/"

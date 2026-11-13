@@ -1,39 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'IBM Plex Mono', Menlo, Monaco, Consolas, 'Courier New', monospace;
+  /* Typography Variables */
+  --font-display: 'Syne', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Navy surfaces */
+  /* Color Palette */
   --navy-950: #060D1F;
   --navy-900: #0A1633;
+  --navy-850: #0E1D40;
   --navy-800: #12234A;
-  --shadow-dark: #030714;
+  --border-subtle: #1A2E5A;
 
-  /* Cream text */
+  /* Typography */
   --cream: #F5EDDC;
   --cream-soft: #C8C0AC;
+  --cream-muted: #8A8578;
 
-  /* Coral accent */
+  /* Single Brand Color: Coral */
   --coral: #FF6F59;
-  --coral-pressed: #E85A44;
-  --coral-soft: rgba(255, 111, 89, 0.16);
+  --coral-hover: #FA5840;
+  --coral-active: #E04A33;
+  --coral-subtle: rgba(255, 111, 89, 0.12);
 
-  /* Functional Severity */
+  /* Functional Severity Colors (Data only) */
   --severity-critical: #E11D48;
   --severity-high: #F59E0B;
   --severity-medium: #FACC15;
   --severity-low: #34D399;
   --severity-info: #94A3B8;
-
-  /* Neumorphic Shadows */
-  --raised-sm: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--navy-800);
-  --raised-md: 8px 8px 16px var(--shadow-dark), -8px -8px 16px var(--navy-800);
-  --raised-lg: 14px 14px 28px var(--shadow-dark), -14px -14px 28px var(--navy-800);
-  --inset-sm: inset 3px 3px 6px var(--shadow-dark), inset -3px -3px 6px var(--navy-800);
-  --inset-md: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--navy-800);
 
   color-scheme: dark;
 }
@@ -54,19 +54,19 @@ body {
   color-scheme: dark;
 }
 
-/* Selection Highlight */
+/* Accessible Selection */
 ::selection {
   background: var(--coral);
   color: var(--navy-950);
 }
 
-/* Focus styles: visible 2px coral outline */
+/* Accessible Focus States */
 :focus-visible {
   outline: 2px solid var(--coral);
   outline-offset: 2px;
 }
 
-/* Touch responsiveness: remove 300ms delay */
+/* Touch responsiveness */
 button, a, input, select, textarea {
   touch-action: manipulation;
 }
@@ -78,7 +78,7 @@ button, a, input, select, textarea {
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--navy-950);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -90,7 +90,7 @@ button, a, input, select, textarea {
   background: var(--coral);
 }
 
-/* Skip link for keyboard accessibility */
+/* Accessible Skip Link */
 .skip-to-content {
   position: absolute;
   top: -100px;
@@ -99,217 +99,73 @@ button, a, input, select, textarea {
   background: var(--coral);
   color: var(--navy-950);
   padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  font-family: monospace;
+  border-radius: 0.5rem;
+  font-family: var(--font-mono, monospace);
   font-size: 0.75rem;
   font-weight: 700;
-  transition: top 0.2s ease;
+  transition: top 0.15s ease-out;
 }
 
 .skip-to-content:focus {
   top: 1rem;
 }
 
-/* Neumorphic components */
-.card-raised {
+/* Flat UI Surface Utilities (No glass, no glows, real borders) */
+.surface-card {
   background-color: var(--navy-900);
-  border: 1px solid var(--navy-800);
-  box-shadow: var(--raised-md);
-  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
 }
 
-.control-raised {
+.surface-card-hover {
   background-color: var(--navy-900);
-  border: 1px solid var(--navy-800);
-  box-shadow: var(--raised-sm);
-  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  transition: border-color 0.15s ease;
 }
 
-.panel-inset {
+.surface-card-hover:hover {
+  border-color: var(--coral);
+}
+
+.surface-subtle {
+  background-color: var(--navy-850);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+}
+
+.surface-input {
   background-color: var(--navy-950);
-  border: 1px solid var(--navy-800);
-  box-shadow: var(--inset-sm);
-  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  color: var(--cream);
+  border-radius: 0.5rem;
+  transition: border-color 0.15s ease;
 }
 
-/* ==========================================================================
-   Futuristic Glassmorphism Intelligence System
-   ========================================================================== */
-
-.glass-panel {
-  background: rgba(12, 22, 48, 0.65);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow:
-    0 8px 32px 0 rgba(3, 7, 20, 0.55),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.12),
-    inset 0 0 24px 0 rgba(255, 111, 89, 0.03);
-  border-radius: 1.25rem; /* 20px */
-  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.glass-panel-hover:hover {
-  border-color: rgba(255, 111, 89, 0.30);
-  box-shadow:
-    0 14px 44px 0 rgba(3, 7, 20, 0.65),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.18),
-    0 0 24px 0 rgba(255, 111, 89, 0.12);
-  transform: translateY(-2px);
-}
-
-.glass-card {
-  background: rgba(12, 22, 48, 0.60);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow:
-    0 6px 24px 0 rgba(3, 7, 20, 0.50),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.10);
-  border-radius: 1.125rem; /* 18px */
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.glass-card-hover:hover {
-  border-color: rgba(255, 111, 89, 0.35);
-  box-shadow:
-    0 12px 32px 0 rgba(3, 7, 20, 0.65),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.16),
-    0 0 20px 0 rgba(255, 111, 89, 0.14);
-  transform: translateY(-3px);
-}
-
-.glass-well {
-  background: rgba(6, 13, 31, 0.70);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: inset 0 2px 8px 0 rgba(3, 7, 20, 0.85);
-  border-radius: 0.875rem; /* 14px */
-}
-
-.glass-input {
-  background: rgba(6, 13, 31, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  color: #F5EDDC;
-  border-radius: 0.75rem; /* 12px */
-  transition: all 0.2s ease;
-}
-
-.glass-input:focus {
-  border-color: #FF6F59;
-  box-shadow: 0 0 16px rgba(255, 111, 89, 0.28);
+.surface-input:focus {
+  border-color: var(--coral);
   outline: none;
 }
 
-.glass-pill {
-  background: rgba(12, 22, 48, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 2px 8px rgba(3, 7, 20, 0.4);
+/* Clean status pills */
+.badge-clean {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--navy-850);
 }
 
-.glass-tooltip {
-  background: rgba(10, 18, 42, 0.92) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow:
-    0 10px 30px rgba(3, 7, 20, 0.8),
-    0 0 20px rgba(255, 111, 89, 0.12) !important;
-  border-radius: 0.875rem !important;
-}
-
-/* Glass skeleton shimmer */
-.glass-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.08) 50%,
-    rgba(255, 255, 255, 0.03) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.8s infinite;
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-/* High contrast mode: switches to flat surfaces with solid 1px borders */
-@media (prefers-contrast: more) {
-  .card-raised,
-  .control-raised,
-  .panel-inset,
-  [class*="shadow-raised"],
-  [class*="shadow-inset"] {
-    box-shadow: none !important;
-    border: 1px solid var(--cream-soft) !important;
-  }
-}
-
-/* Accessibility: prefers-reduced-motion overrides */
+/* Reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-}
-
-/* Print Stylesheet */
-@media print {
-  @page {
-    margin: 1.5cm;
-    size: auto;
-  }
-
-  *, *:before, *:after {
-    background: transparent !important;
-    color: #000 !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-  }
-
-  html, body {
-    background: #FFFFFF !important;
-    color: #000000 !important;
-    font-size: 10pt !important;
-    line-height: 1.4 !important;
-  }
-
-  canvas,
-  button,
-  nav,
-  aside#site-menu,
-  .skip-to-content {
-    display: none !important;
-  }
-
-  body::before {
-    content: "AgentLock // AI Agent Vulnerability Scanner & Automated Red Teaming Platform";
-    display: block;
-    font-size: 9pt;
-    font-family: monospace;
-    font-weight: bold;
-    border-bottom: 1px solid #000;
-    padding-bottom: 6px;
-    margin-bottom: 16px;
-  }
-
-  body::after {
-    content: "Confidential Red Team Vulnerability Report // Deterministic Security Audit";
-    display: block;
-    font-size: 8pt;
-    font-family: monospace;
-    border-top: 1px solid #000;
-    padding-top: 6px;
-    margin-top: 24px;
-    text-align: right;
   }
 }

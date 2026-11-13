@@ -7,33 +7,27 @@ interface StickySectionLabelProps {
 }
 
 const SECTION_LABELS: Record<string, string> = {
-  top: 'Agent Vulnerability Scanner',
-  overview: 'Platform Overview',
-  analytics: 'Vulnerability Analytics',
-  agents: 'Agent Inventory',
-  scan: 'Security Scanning',
-  results: 'Vulnerability Results',
-  reports: 'Audit Reports',
+  top: 'Scanner overview',
+  overview: 'Overview and telemetry',
+  analytics: 'Vulnerability analytics',
+  agents: 'Target inventory',
+  scan: 'Security scanning',
+  results: 'Scan findings',
+  reports: 'Audit reports',
   faq: 'Methodology FAQ',
 };
 
 export const StickySectionLabel: React.FC<StickySectionLabelProps> = ({
   activeSectionId,
 }) => {
-  const label = SECTION_LABELS[activeSectionId] || 'Agent Vulnerability Scanner';
+  const label = SECTION_LABELS[activeSectionId] || 'Scanner overview';
 
   return (
     <div
       aria-label="Current section indicator"
-      className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#060D1F] border border-[#12234A] shadow-[inset_2px_2px_4px_#030714] select-none"
+      className="hidden md:flex items-center gap-2 px-3 py-1 rounded-md bg-navy-900 border border-[#1A2E5A] text-xs font-mono text-cream-soft select-none"
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-[#FF6F59]" />
-      <span className="text-[11px] font-mono font-medium text-[#F5EDDC] tracking-wide">
-        {label}
-      </span>
-      <span className="text-[10px] font-mono text-[#C8C0AC]/60 uppercase border-l border-[#12234A] pl-2">
-        SCANNER
-      </span>
+      <span>{label}</span>
     </div>
   );
 };

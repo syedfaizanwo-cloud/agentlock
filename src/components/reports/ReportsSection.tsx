@@ -1,83 +1,97 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Scan } from '../../types/api';
+import { Scan, Finding } from '../../types/api';
 import { ActionMonitorTable } from '../actions/ActionMonitorTable';
+import { ScanTimelineStrip } from './ScanTimelineStrip';
+import { ScanComparisonView } from './ScanComparisonView';
+import { ScanReportModal } from './ScanReportModal';
 import { api } from '../../lib/api-client';
-import { FileText, Download, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface ReportsSectionProps {
   scans: Scan[];
-  onSelectScan?: (scanId: string) => void;
+  findings?: Finding[];
+  onSelectScan?: (scanId: number | string) => void;
   onRefresh?: () => void;
   isLoading?: boolean;
 }
 
 export const ReportsSection: React.FC<ReportsSectionProps> = ({
   scans = [],
+  findings = [],
   onSelectScan,
   onRefresh,
   isLoading = false,
 }) => {
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [downloadSuccessId, setDownloadSuccessId] = useState<string | null>(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [reportModalScan, setReportModalScan] = useState<Scan | null>(null);
+  const [modalFindings, setModalFindings] = useState<Finding[]>([]);
 
-  const handleDownloadPdf = async (scanId: string) => {
-    setDownloadingId(scanId);
-    setDownloadError(null);
-    try {
-      const blob = await api.downloadReportPdf(scanId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `agentlock-report-${scanId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+  const handleOpenReportModal = async (scanId: number) => {
+    const targetScan = scans.find((s) => s.id === scanId);
+    if (!targetScan) return;
 
-      setDownloadSuccessId(scanId);
-      setTimeout(() => setDownloadSuccessId(null), 3000);
-    } catch (err: any) {
-      setDownloadError(err?.message || 'Failed to download PDF report');
-    } finally {
-      setDownloadingId(null);
+    let scanFindings = findings.filter((f) => f.scan_id === scanId);
+    if (scanFindings.length === 0) {
+      try {
+        scanFindings = await api.getScanFindings(scanId);
+      } catch {
+        scanFindings = [];
+      }
     }
+
+    setModalFindings(scanFindings);
+    setReportModalScan(targetScan);
   };
 
   const completedScans = scans.filter((s) => s.status === 'completed');
-  const totalFindings = scans.reduce((acc, s) => acc + (s.vulnerabilities_found || 0), 0);
+  const totalFindings = scans.reduce((acc, s) => acc + (s.attack_categories?.length || 0), 0);
 
   return (
     <div className="space-y-6">
-      {/* Summary Header Card */}
-      <div className="p-6 rounded-2xl glass-panel flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-32 bg-[#FF6F59]/[0.02] rounded-full blur-3xl pointer-events-none" />
-        <div className="space-y-1 relative z-10">
-          <div className="text-xs font-mono uppercase tracking-wider text-[#C8C0AC]">
-            Audit Dossier Summary
+      {/* 1. Historical Scan Timeline Strip */}
+      <ScanTimelineStrip
+        scans={scans}
+        findings={findings}
+        selectedScanId={reportModalScan?.id}
+        onSelectScan={(id) => {
+          onSelectScan?.(id);
+          handleOpenReportModal(id);
+        }}
+      />
+
+      {/* 2. Summary Dossier Header */}
+      <div className="p-5 rounded-xl bg-navy-900 border border-[#1A2E5A] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="text-xs font-mono text-cream-muted">
+            Evaluation dossier summary
           </div>
-          <div className="text-lg font-bold font-sans text-[#F5EDDC]">
-            {completedScans.length} Completed Scans &bull; {totalFindings} Total Vulnerabilities Detected
+          <div className="text-base sm:text-lg font-bold font-sans text-cream">
+            {completedScans.length} completed evaluations, {totalFindings} total confirmed vulnerabilities
           </div>
         </div>
-
-        {downloadError && (
-          <div className="text-xs font-mono text-[#E11D48] px-3 py-1.5 rounded-lg bg-[#E11D48]/10 border border-[#E11D48]/30">
-            {downloadError}
-          </div>
-        )}
       </div>
 
-      {/* Scans Table */}
+      {/* 3. Two-Scan Comparative Analysis */}
+      <ScanComparisonView scans={scans} findings={findings} />
+
+      {/* 4. Complete Audit Records Table */}
       <ActionMonitorTable
         scans={scans}
         onSelectScan={onSelectScan}
-        onDownloadReport={handleDownloadPdf}
+        onDownloadReport={handleOpenReportModal}
         onRefresh={onRefresh}
         isLoading={isLoading}
       />
+
+      {/* 5. Comprehensive On-Screen Report Preview & PDF Downloader Modal */}
+      {reportModalScan && (
+        <ScanReportModal
+          scan={reportModalScan}
+          findings={modalFindings}
+          isOpen={Boolean(reportModalScan)}
+          onClose={() => setReportModalScan(null)}
+        />
+      )}
     </div>
   );
 };

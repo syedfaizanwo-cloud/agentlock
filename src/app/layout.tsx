@@ -1,16 +1,17 @@
 import type { Metadata, Viewport } from 'next';
 import { WaveGridClientWrapper } from '../components/ui/WaveGridClientWrapper';
-import { AgentLockPreloader } from '../components/preloader/AgentLockPreloader';
-import { IntroTransition } from '../components/preloader/IntroTransition';
 import './globals.css';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://agentlock.dev';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: 'AgentLock | AI Agent Vulnerability Scanner & Red Teaming Platform',
+  title: {
+    default: 'AgentLock | AI Agent Vulnerability Scanner',
+    template: '%s | AgentLock',
+  },
   description:
-    'Controlled adversarial vulnerability scanning and automated red teaming for AI agents. Detect prompt injection, data leakage, tool abuse, and memory poisoning.',
+    'Vulnerability scanning and automated red teaming for AI agents. Detect prompt injection, data leakage, tool abuse, and memory poisoning.',
   manifest: '/site.webmanifest',
   icons: {
     icon: [
@@ -30,9 +31,9 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: SITE_URL,
     siteName: 'AgentLock',
-    title: 'AgentLock | AI Agent Vulnerability Scanner & Red Teaming Platform',
+    title: 'AgentLock | AI Agent Vulnerability Scanner',
     description:
-      'Controlled adversarial vulnerability scanning and automated red teaming for AI agents. Detect prompt injection, data leakage, tool abuse, and memory poisoning.',
+      'Vulnerability scanning and automated red teaming for AI agents. Detect prompt injection, data leakage, tool abuse, and memory poisoning.',
     images: [
       {
         url: '/og-image.png',
@@ -44,9 +45,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AgentLock | AI Agent Vulnerability Scanner & Red Teaming Platform',
+    title: 'AgentLock | AI Agent Vulnerability Scanner',
     description:
-      'Controlled adversarial vulnerability scanning and automated red teaming for AI agents.',
+      'Vulnerability scanning and automated red teaming for AI agents.',
     images: ['/og-image.png'],
   },
   other: {
@@ -71,7 +72,7 @@ const structuredData = {
       applicationCategory: 'SecurityApplication',
       operatingSystem: 'Any',
       description:
-        'AI Agent Vulnerability Scanner and Automated Red Teaming Platform for evaluating autonomous AI agents against prompt injection, data leakage, tool abuse, and memory poisoning.',
+        'AI Agent Vulnerability Scanner and automated red teaming platform for evaluating AI agents against prompt injection, data leakage, tool abuse, and memory poisoning.',
       url: SITE_URL,
     },
     {
@@ -79,7 +80,7 @@ const structuredData = {
       name: 'AgentLock',
       url: SITE_URL,
       logo: `${SITE_URL}/android-chrome-512x512.png`,
-      description: 'AI Agent Vulnerability Scanner and Automated Red Teaming Platform',
+      description: 'AI Agent Vulnerability Scanner and automated red teaming platform.',
     },
   ],
 };
@@ -92,27 +93,27 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className="dark scroll-smooth"
-      style={{ colorScheme: 'dark', backgroundColor: '#060D1F' }}
+      className="dark scroll-smooth bg-[#060D1F]"
     >
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(sessionStorage.getItem('agentlock_intro_seen')&&!window.location.search.includes('intro=1')){document.documentElement.setAttribute('data-intro','skip');}}catch(e){}})()`,
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className="min-h-screen bg-transparent font-sans text-[#F5EDDC] antialiased selection:bg-[#FF6F59] selection:text-[#060D1F] overscroll-y-none relative">
+      <body className="min-h-screen bg-transparent font-sans text-cream antialiased selection:bg-coral selection:text-navy-950 relative">
         <a href="#main-content" className="skip-to-content">
           Skip to main content
         </a>
-        {/* Full-screen Opening Preloader Experience */}
-        <AgentLockPreloader />
-        {/* Single persistent background canvas */}
         <WaveGridClientWrapper />
-        {/* Page content sits above background at z-10 with smooth emergence transition */}
-        <IntroTransition>
+        <main id="main-content" className="relative z-10">
           {children}
-        </IntroTransition>
+        </main>
       </body>
     </html>
   );
