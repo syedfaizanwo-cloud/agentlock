@@ -1,418 +1,309 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Agent, AgentStatus, PrivilegeTier } from '../../types/api';
-import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { Agent, RegisterAgentPayload } from '../../types/api';
 import { CopyButton } from '../ui/CopyButton';
+import { PasswordToggle } from '../ui/PasswordToggle';
 import {
   Bot,
-  Lock,
-  Unlock,
-  Sliders,
+  Plus,
   Search,
-  Cpu,
-  Zap,
+  ExternalLink,
+  ShieldCheck,
+  ShieldAlert,
+  Clock,
+  Loader2,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface AgentManagementViewProps {
   agents: Agent[];
-  onUpdateStatus: (agentId: string, status: AgentStatus) => Promise<void>;
-  onInspectThreat?: (agentId: string) => void;
-  onTestSimulation?: (agentId: string) => void;
+  onRegisterAgent: (payload: RegisterAgentPayload) => Promise<void>;
+  onSelectAgentForScan?: (agent: Agent) => void;
+  isLoading?: boolean;
 }
 
 export const AgentManagementView: React.FC<AgentManagementViewProps> = ({
-  agents,
-  onUpdateStatus,
+  agents = [],
+  onRegisterAgent,
+  onSelectAgentForScan,
+  isLoading = false,
 }) => {
+  const [name, setName] = useState('');
+  const [rawUrl, setRawUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [description, setDescription] = useState('');
+  const [hasAuthConsent, setHasAuthConsent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [tierFilter, setTierFilter] = useState<string>('ALL');
-  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [loadingAgentId, setLoadingAgentId] = useState<string | null>(null);
-  const [confirmAction, setConfirmAction] = useState<{
-    agentId: string;
-    agentName: string;
-    targetStatus: AgentStatus;
-  } | null>(null);
 
-  const filteredAgents = agents.filter((agent) => {
-    const matchesSearch =
-      agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.model.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || agent.status === statusFilter;
-    const matchesTier = tierFilter === 'ALL' || agent.privilege_tier === tierFilter;
-    return matchesSearch && matchesStatus && matchesTier;
-  });
+  // Normalise input: trim, add https:// if missing protocol, strip trailing slash
+  const cleanUrl = (input: string): string => {
+    let u = input.trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) {
+      u = 'https://' + u;
+    }
+    return u.replace(/\/+$/, '');
+  };
 
-  const handleStatusChange = async (agentId: string, newStatus: AgentStatus) => {
-    setLoadingAgentId(agentId);
+  const normalizedUrl = cleanUrl(rawUrl);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError('Agent name is required');
+      return;
+    }
+    if (!normalizedUrl) {
+      setError('Target agent URL is required');
+      return;
+    }
+    if (!hasAuthConsent) {
+      setError('You must confirm ownership or testing authorization');
+      return;
+    }
+
+    setError(null);
+    setIsSubmitting(true);
     try {
-      await onUpdateStatus(agentId, newStatus);
+      await onRegisterAgent({
+        name: name.trim(),
+        target_url: normalizedUrl,
+        api_key: apiKey.trim() || undefined,
+        description: description.trim() || undefined,
+      });
+      // Reset form
+      setName('');
+      setRawUrl('');
+      setApiKey('');
+      setDescription('');
+      setHasAuthConsent(false);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to register agent');
     } finally {
-      setLoadingAgentId(null);
+      setIsSubmitting(false);
     }
   };
 
-  const getTierBadge = (tier: PrivilegeTier) => {
-    switch (tier) {
-      case 'L4_ADMIN_ROOT':
-        return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#C0504D]/10 text-[#C0504D] border border-[#C0504D]/30">
-            L4: ADMIN ROOT
-          </span>
-        );
-      case 'L3_DB_WRITE':
-        return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[rgba(230,203,168,0.14)] text-[#E6CBA8] border border-[#B89B72]">
-            L3: DB WRITE
-          </span>
-        );
-      case 'L2_EXEC':
-        return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#1E1E1E] text-white border border-[#3D3D3D]">
-            L2: EXEC SANDBOX
-          </span>
-        );
-      case 'L1_READONLY':
-        return (
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#151515] text-[#8A8A8A] border border-[#2A2A2A]">
-            L1: READ-ONLY
-          </span>
-        );
-    }
-  };
-
-  const getStatusBadge = (status: AgentStatus) => {
-    switch (status) {
-      case 'active':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-[#6FAF8A]/10 text-[#6FAF8A] border border-[#6FAF8A]/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#6FAF8A] animate-ping"></span>
-            ACTIVE
-          </span>
-        );
-      case 'quarantined':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-[#C0504D]/10 text-[#C0504D] border border-[#C0504D]/30">
-            <Lock className="w-3 h-3 text-[#C0504D]" />
-            QUARANTINED
-          </span>
-        );
-      case 'supervised':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-[rgba(230,203,168,0.14)] text-[#E6CBA8] border border-[#B89B72]">
-            SUPERVISED
-          </span>
-        );
-      case 'suspended':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-medium bg-[#151515] text-[#8A8A8A] border border-[#2A2A2A]">
-            SUSPENDED
-          </span>
-        );
-    }
-  };
+  const filteredAgents = agents.filter(
+    (a) =>
+      a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.target_url.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Header and Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+    <div className="space-y-8">
+      {/* Registration Form Card */}
+      <div className="p-6 sm:p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[8px_8px_16px_#030714,-8px_-8px_16px_#12234A] space-y-6">
+        <div className="flex items-center gap-3 pb-4 border-b border-[#12234A]">
+          <div className="w-8 h-8 rounded-lg bg-[#FF6F59]/10 border border-[#FF6F59]/30 text-[#FF6F59] flex items-center justify-center">
+            <Plus className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold font-sans text-[#F5EDDC]">Register Target Agent</h3>
+            <p className="text-xs text-[#C8C0AC] font-sans">
+              Connect an autonomous agent endpoint for controlled vulnerability testing.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Agent Name */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono text-[#C8C0AC]">
+                Agent Name <span className="text-[#FF6F59]">*</span>
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Production Support Assistant"
+                disabled={isSubmitting}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#060D1F] border border-[#12234A] text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/40 focus:outline-none focus:ring-2 focus:ring-[#FF6F59] shadow-[inset_3px_3px_6px_#030714,inset_-3px_-3px_6px_#12234A]"
+              />
+            </div>
+
+            {/* Target URL */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono text-[#C8C0AC]">
+                Target Endpoint URL <span className="text-[#FF6F59]">*</span>
+              </label>
+              <input
+                type="text"
+                value={rawUrl}
+                onChange={(e) => setRawUrl(e.target.value)}
+                placeholder="https://agent.internal.domain/v1/chat"
+                disabled={isSubmitting}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#060D1F] border border-[#12234A] text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/40 focus:outline-none focus:ring-2 focus:ring-[#FF6F59] shadow-[inset_3px_3px_6px_#030714,inset_-3px_-3px_6px_#12234A]"
+              />
+              {normalizedUrl && rawUrl !== normalizedUrl && (
+                <div className="text-[11px] font-mono text-[#FF6F59]/80">
+                  Cleaned endpoint: {normalizedUrl}
+                </div>
+              )}
+            </div>
+
+            {/* Optional API Key */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono text-[#C8C0AC]">
+                Bearer Token / API Key <span className="text-[#C8C0AC]/60">(optional, encrypted)</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Bearer token or authorization key"
+                  disabled={isSubmitting}
+                  className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-[#060D1F] border border-[#12234A] text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/40 focus:outline-none focus:ring-2 focus:ring-[#FF6F59] shadow-[inset_3px_3px_6px_#030714,inset_-3px_-3px_6px_#12234A]"
+                />
+              </div>
+            </div>
+
+            {/* Optional Description */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono text-[#C8C0AC]">
+                System Role / Notes <span className="text-[#C8C0AC]/60">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="RAG-enabled support bot with SQL execution tool"
+                disabled={isSubmitting}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#060D1F] border border-[#12234A] text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/40 focus:outline-none focus:ring-2 focus:ring-[#FF6F59] shadow-[inset_3px_3px_6px_#030714,inset_-3px_-3px_6px_#12234A]"
+              />
+            </div>
+          </div>
+
+          {/* Authorization Checkbox */}
+          <div className="pt-2">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hasAuthConsent}
+                onChange={(e) => setHasAuthConsent(e.target.checked)}
+                disabled={isSubmitting}
+                className="mt-1 w-4 h-4 rounded border-[#12234A] bg-[#060D1F] text-[#FF6F59] focus:ring-2 focus:ring-[#FF6F59]"
+              />
+              <span className="text-xs font-sans text-[#F5EDDC] leading-relaxed">
+                I own this agent or have explicit authorization to perform adversarial security testing against this endpoint.
+              </span>
+            </label>
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-xl bg-[#E11D48]/10 border border-[#E11D48]/30 text-xs font-mono text-[#E11D48]">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting || !hasAuthConsent}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#FF6F59] text-[#060D1F] font-bold text-xs font-mono uppercase tracking-wider shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] hover:bg-[#E85A44] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Registering...
+                </>
+              ) : (
+                <>
+                  <Bot className="w-3.5 h-3.5" />
+                  Register Agent
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Agent Inventory List */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-mono font-bold text-white tracking-tight">
-              Agent Fleet Governance
-            </h1>
-            <span className="px-2 py-0.5 rounded text-xs font-mono bg-[rgba(230,203,168,0.14)] border border-[#B89B72] text-[#E6CBA8]">
-              {agents.length} Registered
+            <h3 className="text-base font-bold font-sans text-[#F5EDDC]">Agent Inventory</h3>
+            <span className="px-2 py-0.5 rounded-md text-xs font-mono bg-[#0A1633] border border-[#12234A] text-[#FF6F59]">
+              {agents.length}
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-[#8A8A8A] mt-1">
-            Real-time authorization tiers, token throughput quotas, and emergency quarantine controls.
-          </p>
-        </div>
 
-        {/* Fleet KPI Quick Bar */}
-        <div className="flex items-center gap-2 text-xs font-mono">
-          <div className="px-3 py-1.5 rounded-lg bg-[#151515] border border-[#2A2A2A] text-[#6FAF8A]">
-            Active: <strong>{agents.filter((a) => a.status === 'active').length}</strong>
-          </div>
-          <div className="px-3 py-1.5 rounded-lg bg-[#151515] border border-[#2A2A2A] text-[#E6CBA8]">
-            Supervised: <strong>{agents.filter((a) => a.status === 'supervised').length}</strong>
-          </div>
-          <div className="px-3 py-1.5 rounded-lg bg-[#151515] border border-[#2A2A2A] text-[#C0504D]">
-            Quarantined: <strong>{agents.filter((a) => a.status === 'quarantined').length}</strong>
+          <div className="relative w-full sm:w-64">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#C8C0AC]" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search agents..."
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#060D1F] border border-[#12234A] text-xs font-mono text-[#F5EDDC] placeholder-[#C8C0AC]/40 focus:outline-none focus:ring-2 focus:ring-[#FF6F59]"
+            />
           </div>
         </div>
-      </div>
 
-      {/* Filter and Search Bar */}
-      <div className="p-4 rounded-xl bg-[#0D0D0D] border border-[#2A2A2A] flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-[#8A8A8A]" />
-          <input
-            type="text"
-            placeholder="Search agents by name, model, role..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-transparent text-xs font-mono text-white placeholder-[#5C5C5C] focus:outline-none"
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-[#151515] border border-[#2A2A2A] text-xs font-mono text-[#BDBDBD] focus:outline-none focus:border-[#E6CBA8]"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="active">Active Only</option>
-            <option value="quarantined">Quarantined Only</option>
-            <option value="supervised">Supervised Only</option>
-            <option value="suspended">Suspended</option>
-          </select>
-
-          <select
-            value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-[#151515] border border-[#2A2A2A] text-xs font-mono text-[#BDBDBD] focus:outline-none focus:border-[#E6CBA8]"
-          >
-            <option value="ALL">All Privilege Tiers</option>
-            <option value="L4_ADMIN_ROOT">L4: Root Admin</option>
-            <option value="L3_DB_WRITE">L3: DB Write</option>
-            <option value="L2_EXEC">L2: Exec Sandbox</option>
-            <option value="L1_READONLY">L1: Read-Only</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Agents Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredAgents.map((agent) => (
-          <div
-            key={agent.id}
-            className={`p-5 rounded-2xl bg-[#0D0D0D] border transition-all duration-200 flex flex-col justify-between ${
-              agent.status === 'quarantined'
-                ? 'border-[#C0504D]/40'
-                : agent.status === 'supervised'
-                ? 'border-[#B89B72]/40'
-                : 'border-[#2A2A2A] hover:border-[#E6CBA8]'
-            }`}
-          >
-            <div>
-              {/* Top row */}
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
-                      agent.status === 'quarantined'
-                        ? 'bg-[#C0504D]/10 border-[#C0504D]/40 text-[#C0504D]'
-                        : 'bg-[#151515] border-[#2A2A2A] text-[#E6CBA8]'
-                    }`}
-                  >
-                    <Bot className="w-5 h-5" />
+        {agents.length === 0 ? (
+          <div className="p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] text-center space-y-2">
+            <div className="text-xs font-mono text-[#C8C0AC]">No registered agents found</div>
+            <p className="text-xs text-[#C8C0AC]/70">
+              Register an agent endpoint above to enable red team vulnerability scans.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredAgents.map((agent) => (
+              <div
+                key={agent.id}
+                className="p-5 rounded-2xl bg-[#0A1633] border border-[#12234A] shadow-[4px_4px_8px_#030714,-4px_-4px_8px_#12234A] space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-[#FF6F59]" />
+                      <span className="font-sans font-bold text-sm text-[#F5EDDC]">
+                        {agent.name}
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono text-[#C8C0AC] break-all flex items-center gap-2">
+                      <span>{agent.target_url}</span>
+                      <CopyButton text={agent.target_url} label="Copy URL" />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-mono font-bold text-white leading-tight">
-                      {agent.name}
-                    </h3>
-                    <span className="text-[10px] font-mono text-[#8A8A8A]">{agent.id}</span>
-                  </div>
-                </div>
 
-                {getStatusBadge(agent.status)}
-              </div>
-
-              {/* Description */}
-              <p className="text-xs text-[#BDBDBD] line-clamp-2 mb-4 leading-relaxed font-sans">
-                {agent.description}
-              </p>
-
-              {/* Metadata tags */}
-              <div className="space-y-2 py-3 border-y border-[#2A2A2A] text-xs font-mono">
-                <div className="flex items-center justify-between text-[#8A8A8A]">
-                  <span className="flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-[#E6CBA8]" /> Model:
-                  </span>
-                  <span className="text-white font-semibold">{agent.model}</span>
-                </div>
-                <div className="flex items-center justify-between text-[#8A8A8A]">
-                  <span className="flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-[#8A8A8A]" /> Tier:
-                  </span>
-                  {getTierBadge(agent.privilege_tier)}
-                </div>
-                <div className="flex items-center justify-between text-[#8A8A8A]">
-                  <span className="flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-[#E6CBA8]" /> Token Rate:
-                  </span>
-                  <span className="text-white">{agent.token_usage_rate} tpm</span>
-                </div>
-                <div className="flex items-center justify-between text-[#8A8A8A]">
-                  <span>Blocked Threats:</span>
-                  <span className={agent.blocked_count > 0 ? 'text-[#C0504D] font-bold' : 'text-white'}>
-                    {agent.blocked_count}
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-[#34D399]/10 text-[#34D399] border border-[#34D399]/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#34D399]" />
+                    {agent.status.toUpperCase()}
                   </span>
                 </div>
-              </div>
 
-              {/* Allowed Tools Pills */}
-              <div className="mt-3">
-                <div className="text-[10px] font-mono text-[#8A8A8A] uppercase mb-1.5">
-                  Authorized Tools:
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {agent.allowed_tools.map((tool, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#151515] border border-[#2A2A2A] text-[#BDBDBD]"
+                {agent.description && (
+                  <p className="text-xs font-sans text-[#C8C0AC]/80">
+                    {agent.description}
+                  </p>
+                )}
+
+                <div className="pt-2 border-t border-[#12234A] flex items-center justify-between text-[11px] font-mono text-[#C8C0AC]">
+                  <span>
+                    Added: {new Date(agent.created_at).toLocaleDateString()}
+                  </span>
+                  {onSelectAgentForScan && (
+                    <a
+                      href="#scan"
+                      onClick={() => onSelectAgentForScan(agent)}
+                      className="px-3 py-1 rounded-lg bg-[#060D1F] border border-[#12234A] text-[#FF6F59] hover:bg-[#FF6F59] hover:text-[#060D1F] transition-colors"
                     >
-                      {tool}
-                    </span>
-                  ))}
+                      Scan Agent &rarr;
+                    </a>
+                  )}
                 </div>
               </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="mt-5 pt-3 border-t border-[#2A2A2A] flex items-center gap-2">
-              {agent.status === 'quarantined' ? (
-                <button
-                  disabled={loadingAgentId === agent.id}
-                  onClick={() =>
-                    setConfirmAction({
-                      agentId: agent.id,
-                      agentName: agent.name,
-                      targetStatus: 'supervised',
-                    })
-                  }
-                  className="flex-1 py-1.5 px-3 rounded-lg bg-[#6FAF8A]/10 border border-[#6FAF8A]/40 text-[#6FAF8A] hover:bg-[#6FAF8A]/20 text-xs font-mono font-semibold transition-all flex items-center justify-center gap-1.5"
-                >
-                  <Unlock className="w-3.5 h-3.5" />
-                  Release to Supervised
-                </button>
-              ) : (
-                <button
-                  disabled={loadingAgentId === agent.id}
-                  onClick={() =>
-                    setConfirmAction({
-                      agentId: agent.id,
-                      agentName: agent.name,
-                      targetStatus: 'quarantined',
-                    })
-                  }
-                  className="flex-1 py-1.5 px-3 rounded-lg bg-[#C0504D]/10 border border-[#C0504D]/40 text-[#C0504D] hover:bg-[#C0504D]/20 text-xs font-mono font-semibold transition-all flex items-center justify-center gap-1.5"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  Quarantine Agent
-                </button>
-              )}
-
-              <button
-                onClick={() => setSelectedAgent(agent)}
-                className="py-1.5 px-3 rounded-lg bg-[#151515] border border-[#2A2A2A] text-[#BDBDBD] hover:text-white hover:border-[#E6CBA8] text-xs font-mono transition-colors"
-                title="Inspect Details"
-              >
-                Inspect
-              </button>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
-
-      {/* Agent Detail Modal */}
-      {selectedAgent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-xl rounded-2xl bg-[#0D0D0D] border border-[#2A2A2A] p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#2A2A2A]">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-[rgba(230,203,168,0.14)] border border-[#B89B72] text-[#E6CBA8]">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-mono font-bold text-white">{selectedAgent.name}</h3>
-                  <div className="text-xs font-mono text-[#E6CBA8]">{selectedAgent.id}</div>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedAgent(null)}
-                className="text-[#8A8A8A] hover:text-white text-lg font-mono"
-              >
-                &times;
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs font-mono">
-              <div>
-                <span className="text-[#8A8A8A] block mb-0.5">Role & Mandate:</span>
-                <p className="text-[#BDBDBD] font-sans leading-relaxed">{selectedAgent.description}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-[#151515] border border-[#2A2A2A]">
-                <div>
-                  <span className="text-[#8A8A8A] block">LLM Engine:</span>
-                  <span className="text-white font-bold">{selectedAgent.model}</span>
-                </div>
-                <div>
-                  <span className="text-[#8A8A8A] block">Privilege Tier:</span>
-                  {getTierBadge(selectedAgent.privilege_tier)}
-                </div>
-                <div>
-                  <span className="text-[#8A8A8A] block">Total Invocations:</span>
-                  <span className="text-white font-bold">{selectedAgent.total_actions}</span>
-                </div>
-                <div>
-                  <span className="text-[#8A8A8A] block">Violations Blocked:</span>
-                  <span className="text-[#C0504D] font-bold">{selectedAgent.blocked_count}</span>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[#8A8A8A] block mb-1">Assigned Security Owner:</span>
-                <span className="text-[#BDBDBD]">{selectedAgent.owner}</span>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-[#2A2A2A] flex items-center justify-end gap-2">
-              <button
-                onClick={() => setSelectedAgent(null)}
-                className="px-4 py-2 rounded-lg bg-[#151515] border border-[#2A2A2A] text-[#BDBDBD] text-xs font-mono hover:text-white hover:border-[#E6CBA8]"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Dialog for Quarantine / Release */}
-      {confirmAction && (
-        <ConfirmDialog
-          isOpen={true}
-          title={
-            confirmAction.targetStatus === 'quarantined'
-              ? `Quarantine Agent: ${confirmAction.agentName}`
-              : `Release Agent: ${confirmAction.agentName}`
-          }
-          isDestructive={confirmAction.targetStatus === 'quarantined'}
-          description={
-            confirmAction.targetStatus === 'quarantined'
-              ? 'This will immediately revoke active runtime credentials, severed gateway proxy routes, and halt all tool executions for this agent.'
-              : 'This will restore execution privileges under supervised L2 boundaries with human approval required for high-risk actions.'
-          }
-          confirmText={
-            confirmAction.targetStatus === 'quarantined' ? 'Quarantine Agent' : 'Release to Supervised'
-          }
-          cancelText="Cancel"
-          isLoading={loadingAgentId === confirmAction.agentId}
-          onConfirm={async () => {
-            await handleStatusChange(confirmAction.agentId, confirmAction.targetStatus);
-            setConfirmAction(null);
-          }}
-          onClose={() => setConfirmAction(null)}
-        />
-      )}
     </div>
   );
 };

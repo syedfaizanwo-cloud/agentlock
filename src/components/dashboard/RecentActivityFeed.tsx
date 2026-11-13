@@ -1,149 +1,99 @@
 'use client';
 
 import React from 'react';
-import { ActionRecord } from '../../types/api';
-import {
-  ShieldAlert,
-  ShieldCheck,
-  AlertTriangle,
-  Clock,
-  ArrowRight,
-  Terminal,
-  Database,
-  FileCode,
-  KeyRound,
-} from 'lucide-react';
+import { Scan } from '../../types/api';
+import { ShieldCheck, ShieldAlert, Clock, ArrowRight, Loader2 } from 'lucide-react';
 
 interface RecentActivityFeedProps {
-  actions: ActionRecord[];
-  onInspectAction: (action: ActionRecord) => void;
-  onViewAll: () => void;
+  scans: Scan[];
+  onSelectScan?: (scanId: string) => void;
+  onViewAll?: () => void;
 }
 
 export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
-  actions,
-  onInspectAction,
+  scans = [],
+  onSelectScan,
   onViewAll,
 }) => {
-  const getActionIcon = (type: ActionRecord['action_type']) => {
-    switch (type) {
-      case 'bash':
-        return <Terminal className="w-3.5 h-3.5" />;
-      case 'sql':
-        return <Database className="w-3.5 h-3.5" />;
-      case 'file_write':
-      case 'file_read':
-        return <FileCode className="w-3.5 h-3.5" />;
-      case 'iam_assume':
-        return <KeyRound className="w-3.5 h-3.5" />;
-      default:
-        return <Terminal className="w-3.5 h-3.5" />;
-    }
-  };
-
-  const getStatusBadge = (status: ActionRecord['status']) => {
+  const getStatusBadge = (status: Scan['status']) => {
     switch (status) {
-      case 'allowed':
+      case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#6FAF8A]/10 text-[#6FAF8A] border border-[#6FAF8A]/30">
-            <ShieldCheck className="w-3 h-3" /> ALLOWED
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#34D399]/10 text-[#34D399] border border-[#34D399]/30">
+            <ShieldCheck className="w-3 h-3" /> COMPLETED
           </span>
         );
-      case 'blocked':
+      case 'running':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#C0504D]/10 text-[#C0504D] border border-[#C0504D]/30">
-            <ShieldAlert className="w-3 h-3 text-[#C0504D]" /> BLOCKED
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-[#FACC15]/10 text-[#FACC15] border border-[#FACC15]/30">
+            <Loader2 className="w-3 h-3 animate-spin" /> RUNNING
           </span>
         );
-      case 'escalated':
+      case 'failed':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-[rgba(230,203,168,0.14)] text-[#E6CBA8] border border-[#B89B72]">
-            <AlertTriangle className="w-3 h-3 text-[#E6CBA8]" /> ESCALATED
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#E11D48]/10 text-[#E11D48] border border-[#E11D48]/30">
+            <ShieldAlert className="w-3 h-3" /> FAILED
           </span>
         );
-      case 'pending':
+      default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium bg-white/5 text-[#BDBDBD] border border-[#2A2A2A]">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-mono bg-[#12234A] text-[#C8C0AC] border border-[#12234A]">
             <Clock className="w-3 h-3" /> PENDING
           </span>
         );
     }
   };
 
+  if (!scans || scans.length === 0) {
+    return (
+      <div className="p-8 rounded-2xl bg-[#0A1633] border border-[#12234A] text-center space-y-2">
+        <div className="text-xs font-mono text-[#C8C0AC]">No recent scan activity</div>
+        <p className="text-xs text-[#C8C0AC]/70">
+          Initiate an adversarial scan to generate execution history.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 rounded-2xl bg-[#0D0D0D] border border-[#2A2A2A]">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-sm font-mono font-bold text-white tracking-wide uppercase">
-            Live Interception Stream
-          </h3>
-          <p className="text-xs text-[#8A8A8A]">Chronological telemetry audit feed</p>
+    <div className="space-y-3">
+      {scans.slice(0, 5).map((scan) => (
+        <div
+          key={scan.id}
+          onClick={() => onSelectScan?.(scan.id)}
+          className="p-4 rounded-xl bg-[#0A1633] border border-[#12234A] hover:border-[#FF6F59] transition-all cursor-pointer flex items-center justify-between gap-4"
+        >
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold text-[#F5EDDC]">
+                {scan.agent_name || scan.agent_id}
+              </span>
+              {getStatusBadge(scan.status)}
+            </div>
+            <div className="text-[11px] font-mono text-[#C8C0AC]/70">
+              {new Date(scan.started_at).toLocaleString()} // {scan.categories.join(', ')}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {typeof scan.vulnerabilities_found === 'number' && (
+              <span className="text-xs font-mono px-2 py-0.5 rounded bg-[#060D1F] border border-[#12234A] text-[#FF6F59]">
+                {scan.vulnerabilities_found} findings
+              </span>
+            )}
+            <ArrowRight className="w-4 h-4 text-[#C8C0AC] hover:text-[#FF6F59] transition-colors" />
+          </div>
         </div>
+      ))}
+
+      {onViewAll && (
         <button
           onClick={onViewAll}
-          className="text-xs font-mono text-[#E6CBA8] hover:text-[#F7E7CE] hover:underline flex items-center gap-1 transition-colors"
+          className="w-full py-2.5 text-center text-xs font-mono text-[#FF6F59] hover:underline"
         >
-          View Full Table <ArrowRight className="w-3.5 h-3.5" />
+          View all scans &rarr;
         </button>
-      </div>
-
-      <div className="space-y-2.5">
-        {actions.length === 0 ? (
-          <div className="py-8 text-center text-xs font-mono text-[#8A8A8A]">
-            No recent activity recorded
-          </div>
-        ) : (
-          actions.slice(0, 6).map((item) => (
-            <div
-              key={item.id}
-              onClick={() => onInspectAction(item)}
-              className="p-3 rounded-xl bg-[#151515] border border-[#2A2A2A] hover:border-[#E6CBA8] transition-all cursor-pointer group"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div
-                    className={`p-1.5 rounded-lg border text-xs ${
-                      item.status === 'blocked'
-                        ? 'bg-[#C0504D]/10 border-[#C0504D]/30 text-[#C0504D]'
-                        : item.status === 'escalated'
-                        ? 'bg-[rgba(230,203,168,0.14)] border-[#B89B72] text-[#E6CBA8]'
-                        : 'bg-[#1E1E1E] border-[#2A2A2A] text-[#BDBDBD]'
-                    }`}
-                  >
-                    {getActionIcon(item.action_type)}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-semibold text-white group-hover:text-[#E6CBA8] transition-colors">
-                        {item.agent_name}
-                      </span>
-                      <span className="text-[10px] font-mono text-[#8A8A8A] uppercase">
-                        [{item.action_type}]
-                      </span>
-                    </div>
-                    <div className="text-xs font-mono text-[#8A8A8A] truncate max-w-sm sm:max-w-md mt-0.5">
-                      {item.target}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  {getStatusBadge(item.status)}
-                  <span className="text-[10px] font-mono text-[#8A8A8A]">
-                    {new Date(item.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-              </div>
-
-              {item.explanation && (
-                <div className="mt-2 text-[11px] text-[#8A8A8A] pl-8 border-t border-[#2A2A2A] pt-1.5 line-clamp-1">
-                  {item.explanation}
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+      )}
     </div>
   );
 };
