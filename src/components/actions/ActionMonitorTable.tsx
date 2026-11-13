@@ -149,7 +149,7 @@ export const ActionMonitorTable: React.FC<ActionMonitorTableProps> = ({
                         {scan.vulnerabilities_found}
                       </span>
                     ) : (
-                      '—'
+                      '-'
                     )}
                   </td>
                   <td className="py-3 px-4">

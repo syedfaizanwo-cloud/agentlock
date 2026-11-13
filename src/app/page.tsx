@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { TopBar } from '../components/navigation/TopBar';
-import { RelayHero } from '../components/relay/RelayHero';
+import { ScannerHero } from '../components/hero/ScannerHero';
 import { StatCard } from '../components/dashboard/StatCard';
 import { Sparkline } from '../components/bento/Sparkline';
 import { RecentActivityFeed } from '../components/dashboard/RecentActivityFeed';
@@ -188,7 +188,7 @@ export default function HomePage() {
 
       <main id="main-content" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20 space-y-28">
         {/* Section 1: Hero #top */}
-        <RelayHero
+        <ScannerHero
           backendOnline={backendOnline}
           latencyMs={latencyMs}
           onStartScan={() => {
@@ -223,7 +223,7 @@ export default function HomePage() {
             <div className="relative">
               <StatCard
                 title="Registered Agents"
-                value={isLoadingStats ? '—' : stats?.registered_agents ?? agents.length}
+                value={isLoadingStats ? '-' : stats?.registered_agents ?? agents.length}
                 subtitle="Target inventory"
                 icon={Bot}
               />
@@ -235,7 +235,7 @@ export default function HomePage() {
             <div className="relative">
               <StatCard
                 title="Total Scans"
-                value={isLoadingStats ? '—' : stats?.total_scans ?? scans.length}
+                value={isLoadingStats ? '-' : stats?.total_scans ?? scans.length}
                 subtitle="Evaluations executed"
                 icon={Activity}
               />
@@ -247,7 +247,7 @@ export default function HomePage() {
             <div className="relative">
               <StatCard
                 title="Confirmed Vulns"
-                value={isLoadingStats ? '—' : stats?.confirmed_vulnerabilities ?? 0}
+                value={isLoadingStats ? '-' : stats?.confirmed_vulnerabilities ?? 0}
                 subtitle="Verified findings"
                 icon={AlertTriangle}
               />
@@ -259,7 +259,7 @@ export default function HomePage() {
             <div className="relative">
               <StatCard
                 title="Critical Findings"
-                value={isLoadingStats ? '—' : stats?.critical_findings ?? 0}
+                value={isLoadingStats ? '-' : stats?.critical_findings ?? 0}
                 subtitle="Immediate action required"
                 icon={ShieldAlert}
               />

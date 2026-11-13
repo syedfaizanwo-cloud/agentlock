@@ -1,4 +1,4 @@
-# AgentLock — AI Agent Vulnerability Scanner & Automated Red Teaming Platform
+# AgentLock: AI Agent Vulnerability Scanner & Automated Red Teaming Platform
 
 > AgentLock is an enterprise automated red-teaming platform that evaluates autonomous AI agents, tool-augmented LLMs, and multi-agent workflows against production security threats before deployment.
 
@@ -16,15 +16,15 @@
 - Attack Engine: Modular adversarial testing suite generating deterministic and LLM-assisted exploit payloads.
 
 ## REST API Endpoints
-- GET /health — Service health check and latency diagnostics.
-- GET /api/dashboard/stats — Aggregated security telemetry and vulnerability counts.
-- GET /api/agents — Target agent inventory.
-- POST /api/agents — Register new agent endpoint for testing.
-- POST /api/scans — Initiate adversarial security evaluation.
-- GET /api/scans — Scan execution history.
-- GET /api/scans/{id} — Detailed status and progress of a specific scan.
-- GET /api/scans/{id}/results — Detailed findings, attack payloads, evidence, and remediation guidance.
-- GET /api/scans/{id}/report/pdf — Download cryptographically signed executive audit report.
+- GET /health - Service health check and latency diagnostics.
+- GET /api/dashboard/stats - Aggregated security telemetry and vulnerability counts.
+- GET /api/agents - Target agent inventory.
+- POST /api/agents - Register new agent endpoint for testing.
+- POST /api/scans - Initiate adversarial security evaluation.
+- GET /api/scans - Scan execution history.
+- GET /api/scans/{id} - Detailed status and progress of a specific scan.
+- GET /api/scans/{id}/results - Detailed findings, attack payloads, evidence, and remediation guidance.
+- GET /api/scans/{id}/report/pdf - Download cryptographically signed executive audit report.
 
 ## Engineering Team
 - Syed Faizan: Attack Engine & Adversarial Vectors
