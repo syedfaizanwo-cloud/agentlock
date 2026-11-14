@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment variables
+.env
+backend/.env
+.env.production
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated reports
+backend/reports/
+
+# Local development safety backups
+/AgentLock_*_backup_*/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node and build output
+node_modules
+dist
+dist-ssr
+.next/
+*.local
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Archives
+*.zip
