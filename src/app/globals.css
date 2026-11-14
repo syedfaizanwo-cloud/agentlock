@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Typography Variables */
+  --font-display: 'Syne', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Color Palette */
+  --navy-950: #060D1F;
+  --navy-900: #0A1633;
+  --navy-850: #0E1D40;
+  --navy-800: #12234A;
+  --border-subtle: #1A2E5A;
+
+  /* Typography */
+  --cream: #F5EDDC;
+  --cream-soft: #C8C0AC;
+  --cream-muted: #8A8578;
+
+  /* Single Brand Color: Coral */
+  --coral: #FF6F59;
+  --coral-hover: #FA5840;
+  --coral-active: #E04A33;
+  --coral-subtle: rgba(255, 111, 89, 0.12);
+
+  /* Functional Severity Colors (Data only) */
+  --severity-critical: #E11D48;
+  --severity-high: #F59E0B;
+  --severity-medium: #FACC15;
+  --severity-low: #34D399;
+  --severity-info: #94A3B8;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+  background-color: var(--navy-950);
+}
+
+body {
+  color: var(--cream);
+  background-color: transparent;
+  overflow-x: hidden;
+  color-scheme: dark;
+}
+
+/* Accessible Selection */
+::selection {
+  background: var(--coral);
+  color: var(--navy-950);
+}
+
+/* Accessible Focus States */
+:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 2px;
+}
+
+/* Touch responsiveness */
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--navy-950);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--navy-800);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--coral);
+}
+
+/* Accessible Skip Link */
+.skip-to-content {
+  position: absolute;
+  top: -100px;
+  left: 1rem;
+  z-index: 999;
+  background: var(--coral);
+  color: var(--navy-950);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: top 0.15s ease-out;
+}
+
+.skip-to-content:focus {
+  top: 1rem;
+}
+
+/* Flat UI Surface Utilities (No glass, no glows, real borders) */
+.surface-card {
+  background-color: var(--navy-900);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+}
+
+.surface-card-hover {
+  background-color: var(--navy-900);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  transition: border-color 0.15s ease;
+}
+
+.surface-card-hover:hover {
+  border-color: var(--coral);
+}
+
+.surface-subtle {
+  background-color: var(--navy-850);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+}
+
+.surface-input {
+  background-color: var(--navy-950);
+  border: 1px solid var(--border-subtle);
+  color: var(--cream);
+  border-radius: 0.5rem;
+  transition: border-color 0.15s ease;
+}
+
+.surface-input:focus {
+  border-color: var(--coral);
+  outline: none;
+}
+
+/* Clean status pills */
+.badge-clean {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--navy-850);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
