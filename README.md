@@ -54,9 +54,9 @@ agentlock/
 
 ## Technology Stack
 
-- Framework: Next.js 14 (App Router)
-- UI Library: React 18
-- Language: TypeScript 5
+- Web app: Next.js 16 App Router and React 19
+- Backend API: FastAPI with SQLAlchemy and SQLite
+- Language: TypeScript 5 and Python 3.12+
 - Styling: Tailwind CSS 3
 - 3D Visuals: Three.js (WaveGridBackground persistent canvas)
 - Charts: Recharts (dynamically imported with ssr: false)
@@ -78,8 +78,9 @@ The interface adheres to an intentional flat navy design system:
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 20.9+
 - npm 9+
+- Python 3.12+ for the FastAPI backend
 
 ### Installation
 
@@ -87,21 +88,30 @@ The interface adheres to an intentional flat navy design system:
 npm install
 ```
 
-### Environment Configuration
+### Secure Environment Configuration
 
-Create a `.env.local` file based on `.env.example`:
+Copy both example files, then fill in real secrets before starting the app:
 
-```bash
-# Canonical site URL for metadata, sitemaps, and robots.txt
-NEXT_PUBLIC_SITE_URL=https://agentlock.dev
+~~~powershell
+Copy-Item .env.example .env.local
+Copy-Item backend/.env.example backend/.env
+py -c "import secrets; print(secrets.token_urlsafe(48))"
+~~~
 
-# Backend REST API base URL
-BACKEND_URL=http://localhost:8000
+Generate separate random values for AGENTLOCK_API_KEY and AGENTLOCK_SESSION_SECRET. Put the same API key in the frontend .env.local and backend/.env. Set a unique administrator email and a password with at least 16 characters. Never commit real environment files or put secrets in NEXT_PUBLIC_* variables.
 
-# Set to "true" only for isolated offline development
-# Strictly disabled automatically in production builds
-NEXT_PUBLIC_USE_MOCKS=false
-```
+For local development, keep BACKEND_URL=http://127.0.0.1:8000 and set AGENTLOCK_FRONTEND_ORIGIN=http://localhost:5173. For production, use an HTTPS BACKEND_URL and the exact HTTPS site origin.
+
+Start the backend in one PowerShell window:
+
+~~~powershell
+Set-Location backend
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+~~~
+
+Then start the frontend from the project root using the Development Server steps below. The app uses one administrator login configured in environment variables. See [Security hardening and remaining risks](docs/SECURITY_HARDENING.md) before using real agent or customer data.
 
 ### Development Server
 
@@ -141,9 +151,9 @@ To deploy AgentLock with your custom domain:
 
 The frontend proxies requests to the backend service configured via `BACKEND_URL`:
 
-- `GET /health`: Diagnostic health check and latency telemetry
+- `GET /api/health`: Diagnostic health check and latency telemetry
 - `POST /api/auth/login`: Issue session cookie upon credentials validation
-- `POST /api/auth/logout`: Invalidate session cookie and backend session
+- `POST /api/auth/logout`: Clear the browser session cookie
 - `GET /api/auth/me`: Return authenticated user profile and permissions
 - `GET /api/dashboard/stats`: Total scans, registered agents, confirmed vulnerabilities, and critical count
 - `GET /api/agents`: Registered agent inventory
@@ -156,6 +166,6 @@ The frontend proxies requests to the backend service configured via `BACKEND_URL
 
 ## Repository Guidelines
 
-- Active work branch: `frontend`
-- Never push directly to `main`
-- Backend services remain isolated from frontend commits
+- Security work is developed on `security/framework-security-hardening`
+- Push feature branches before merging them into `main`
+- Keep backend and frontend changes documented together when they share an API boundary

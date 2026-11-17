@@ -1,105 +1,40 @@
-# AgentLock Authentication API Contract
+# AgentLock authentication and API security
 
-This document specifies the exact REST API contract for authentication endpoints required by the frontend.
+## Login model
 
-## Overview
+This release supports one administrator account configured by the deployment environment. It does not include public registration or a user database.
 
-- Authentication is session-cookie based.
-- The session cookie must be `httpOnly`, `Secure` (in production), and `SameSite=Lax`.
-- The frontend never stores access tokens or credentials in `localStorage` or `sessionStorage`.
+POST /api/auth/login checks AGENTLOCK_ADMIN_EMAIL and AGENTLOCK_ADMIN_PASSWORD, then sets an HMAC-signed agentlock_session cookie. The cookie is HttpOnly, SameSite=Strict, Secure in production, and expires after 8 hours (7 days when Keep me signed in is selected). The browser does not store a bearer token in local or session storage.
 
-## Endpoints
+GET /api/auth/me returns the configured administrator identity when the signed cookie is valid. POST /api/auth/logout clears the browser cookie. Rotating AGENTLOCK_SESSION_SECRET invalidates every issued session.
 
-### 1. User Login
+Login rejects requests from an unconfigured or mismatched Origin. The process-local login limiter permits five failed attempts per email/IP key in five minutes and returns 429 with Retry-After. This is a defense-in-depth measure; deployments with multiple instances must also use a shared or host-level rate limiter.
 
-- **Method**: `POST`
-- **Path**: `/api/auth/login`
-- **Request Body**:
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "SecretPassword123!",
-    "remember": true
-  }
-  ```
-- **Responses**:
-  - **`200 OK`**:
-    Sets the session cookie header:
-    ```http
-    Set-Cookie: agentlock_session=<session_token>; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000
-    ```
-    Response payload:
-    ```json
-    {
-      "user": {
-        "id": "usr_99812",
-        "email": "user@example.com",
-        "name": "Security Lead"
-      }
-    }
-    ```
-  - **`401 Unauthorized`**:
-    When credentials are invalid. Response payload:
-    ```json
-    {
-      "detail": "Invalid email or password"
-    }
-    ```
-    *Note: Do not disclose whether email or password was the incorrect field.*
-  - **`429 Too Many Requests`**:
-    When rate limits are exceeded (e.g. 5 failed attempts within 5 minutes).
-    Header:
-    ```http
-    Retry-After: 60
-    ```
-    Response payload:
-    ```json
-    {
-      "detail": "Too many failed attempts. Please try again later."
-    }
-    ```
-  - **`500 Internal Server Error`**:
-    When the database or auth service is temporarily unavailable.
+## Protecting agent data
 
-### 2. User Logout
+The frontend protects /agents, /scans, and /reports. Every data API request also passes through a same-origin Next.js server route that validates the signed session and checks the Origin on state-changing requests. The server route forwards only the required request headers to the fixed backend URL.
 
-- **Method**: `POST`
-- **Path**: `/api/auth/logout`
-- **Request**: Empty body with session cookie.
-- **Responses**:
-  - **`200 OK`**:
-    Clears the cookie:
-    ```http
-    Set-Cookie: agentlock_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0
-    ```
-    Response payload:
-    ```json
-    {
-      "ok": true
-    }
-    ```
+The FastAPI data routers require X-AgentLock-API-Key. Configure the same random key, with at least 32 characters, as AGENTLOCK_API_KEY in the frontend and backend environments. Missing or invalid configuration fails closed: data routes return 503 when no key is configured and 401 when the key is absent or incorrect. /api/health remains public and returns service status only. FastAPI docs and the OpenAPI schema are disabled.
 
-### 3. Current User Verification
+## Environment values
 
-- **Method**: `GET`
-- **Path**: `/api/auth/me`
-- **Request**: Cookie credentials included.
-- **Responses**:
-  - **`200 OK`**:
-    ```json
-    {
-      "user": {
-        "id": "usr_99812",
-        "email": "user@example.com",
-        "name": "Security Lead"
-      }
-    }
-    ```
-  - **`401 Unauthorized`**:
-    When cookie is missing, expired, or invalid.
+Frontend server environment:
 
-## Security and CSRF Protection
+- AGENTLOCK_ADMIN_EMAIL
+- AGENTLOCK_ADMIN_PASSWORD (at least 16 characters)
+- AGENTLOCK_SESSION_SECRET (at least 32 random bytes)
+- AGENTLOCK_API_KEY (same value as the backend)
+- AGENTLOCK_FRONTEND_ORIGIN (exact origin, including scheme and port)
+- BACKEND_URL (HTTPS in production)
 
-- Because sessions rely on cookies, the backend must enforce CSRF defenses:
-  - Option A (Recommended): Validate the `Origin` and `Referer` headers on all state-changing methods (`POST`, `PUT`, `DELETE`). Reject requests whose origin does not match the configured frontend domain.
-  - Option B: Use double-submit CSRF tokens.
+Backend environment:
+
+- AGENTLOCK_API_KEY (same value as the frontend)
+
+Never put secrets in variables prefixed with NEXT_PUBLIC_, commit real .env files, or expose the backend API key to browser JavaScript.
+
+## Remaining safeguards before real customer data
+
+This is a single-administrator security baseline, not a complete multi-customer product. It does not provide per-user accounts, MFA, tenant isolation, centralized session revocation, persistent/distributed rate limiting, or database encryption at rest. Logout clears the active browser cookie; if a session secret may have leaked, rotate it to revoke all sessions.
+
+Agent records, scan prompts, findings, evidence, and generated PDF reports are stored in SQLite and on disk without application-level encryption. Use an encrypted host volume, restrict filesystem and backup access, and define retention/deletion rules. Keep the backend on a private network and use HTTPS, a firewall, and host-level rate limits in production. Do not expose the placeholder environment configuration or load real customer data until secrets and deployment controls are set.
