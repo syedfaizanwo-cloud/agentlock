@@ -15,12 +15,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const nextParam =
-    typeof searchParams?.next === 'string' ? searchParams.next : undefined;
+    typeof resolvedSearchParams.next === 'string'
+      ? resolvedSearchParams.next
+      : undefined;
   return <LoginFormClient initialNext={nextParam} />;
 }

@@ -7,7 +7,7 @@ export const PROTECTED_ROUTES: string[] = [];
 
 export { sanitizeNextUrl };
 
-export function middleware(_request: NextRequest) {
+export function proxy(_request: NextRequest) {
   // All demo routes (/, /agents, /scans, /reports, /faq) are accessible without session cookies
   return NextResponse.next();
 }

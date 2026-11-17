@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Shield, X, Github, ExternalLink, LogIn, LogOut } from 'lucide-react';
 import type { User } from '../../types/api';
 
@@ -38,6 +39,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
   currentUser,
   onLogout,
 }) => {
+  const router = useRouter();
   const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -120,7 +122,7 @@ export const HamburgerDrawer: React.FC<HamburgerDrawerProps> = ({
         }
       }, 350);
     } else {
-      window.location.href = `/#${id}`;
+      router.push(`/#${id}`);
     }
   };
 
