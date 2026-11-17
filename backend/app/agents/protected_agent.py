@@ -25,7 +25,7 @@ class ProtectedMockAgent:
         normalized = prompt.lower()
 
         attack_markers = (
-            "ignore prevous instructions",
+            "ignore previous instructions",
             "reveal the canary",
             "show the secret",
             "print the secret"

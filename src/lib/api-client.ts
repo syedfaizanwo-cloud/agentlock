@@ -17,7 +17,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public detail?: string
+    public detail?: string,
+    public retryAfterSeconds?: number
   ) {
     super(message);
     this.name = 'ApiError';
@@ -94,6 +95,7 @@ async function request<T>(
     const response = await fetch(url, {
       ...customConfig,
       signal: controller.signal,
+      credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -104,6 +106,7 @@ async function request<T>(
     clearTimeout(timer);
 
     if (!response.ok) {
+      if (response.status === 401) invalidateApiCache();
       let detail = '';
       try {
         const errorJson = await response.json();
@@ -111,10 +114,13 @@ async function request<T>(
       } catch {
         detail = await response.text().catch(() => '');
       }
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : undefined;
       throw new ApiError(
         detail || `API request failed with status ${response.status}`,
         response.status,
-        detail
+        detail,
+        retryAfter !== undefined && Number.isFinite(retryAfter) ? retryAfter : undefined
       );
     }
 
@@ -338,6 +344,7 @@ export const api = {
     try {
       const response = await fetch(`/api/reports/${reportId}/pdf`, {
         signal: controller.signal,
+        credentials: 'same-origin',
       });
       clearTimeout(timer);
 
@@ -353,31 +360,43 @@ export const api = {
     }
   },
 
-  // Auth Stubs (Public demo access: no auth barriers, typed contracts preserved)
-  async login(payload: { email: string; password?: string; remember?: boolean }): Promise<{ user: User; token?: string }> {
-    return {
-      user: {
-        id: 'demo-user-1',
-        email: payload.email,
-        name: payload.email.split('@')[0] || 'Security Evaluator',
-        role: 'operator',
-      },
-      token: 'demo-session-token',
-    };
+  // Server-issued HttpOnly sessions; no token is exposed to browser storage.
+  async login(payload: LoginPayload): Promise<{ user: User }> {
+    try {
+      const result = await request<{ user: User }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      invalidateApiCache();
+      return result;
+    } catch (error: unknown) {
+      if (error instanceof ApiError) {
+        throw new AuthError(
+          error.message,
+          error.status,
+          error.retryAfterSeconds,
+          error.detail,
+        );
+      }
+      throw error;
+    }
   },
 
   async logout(): Promise<void> {
-    // No-op for public demo
-    return Promise.resolve();
+    try {
+      await request<{ ok: boolean }>('/auth/logout', { method: 'POST' });
+    } finally {
+      invalidateApiCache();
+    }
   },
 
   async getCurrentUser(): Promise<User | null> {
-    // Public demo operator
-    return {
-      id: 'demo-user-1',
-      email: 'evaluator@agentlock.dev',
-      name: 'Security Evaluator',
-      role: 'operator',
-    };
+    try {
+      const response = await request<{ user: User }>('/auth/me');
+      return response.user;
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.status === 401) return null;
+      throw error;
+    }
   },
 };

@@ -3,26 +3,28 @@ import type { Metadata } from 'next';
 import { ScanDetailClient } from './ScanDetailClient';
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export function generateMetadata({ params }: PageProps): Metadata {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
   return {
-    title: `Scan Results ${params.id}`,
-    description: `Detailed vulnerability findings, attack payloads, evidence, and remediation code for scan ${params.id}.`,
+    title: `Scan Results ${id}`,
+    description: `Detailed vulnerability findings, attack payloads, evidence, and remediation code for scan ${id}.`,
     alternates: {
-      canonical: `/scans/${params.id}`,
+      canonical: `/scans/${id}`,
     },
     openGraph: {
-      title: `Scan Results ${params.id} | AgentLock`,
+      title: `Scan Results ${id} | AgentLock`,
       description: `Detailed vulnerability findings, attack payloads, evidence, and remediation code.`,
-      url: `/scans/${params.id}`,
+      url: `/scans/${id}`,
     },
   };
 }
 
-export default function ScanDetailPage({ params }: PageProps) {
-  return <ScanDetailClient scanId={params.id} />;
+export default async function ScanDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  return <ScanDetailClient scanId={id} />;
 }
